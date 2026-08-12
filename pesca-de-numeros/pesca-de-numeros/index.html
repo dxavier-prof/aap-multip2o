@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>🎣 Pesca de Números — Aprende las tablas de multiplicar</title>
+<meta name="description" content="Juego educativo de pesca para aprender las tablas de multiplicar del 1 al 10, incluyendo la regla del cero.">
+
+<!-- Tipografías redondas y amigables para niños (Google Fonts) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐟</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Fondo decorativo de olas (SVG inline, sin dependencias externas) -->
+<div class="ocean-bg" aria-hidden="true">
+  <svg class="wave wave-back" viewBox="0 0 1440 200" preserveAspectRatio="none">
+    <path d="M0,100 C 240,180 480,20 720,90 C 960,160 1200,40 1440,100 L1440,200 L0,200 Z"></path>
+  </svg>
+  <svg class="wave wave-front" viewBox="0 0 1440 200" preserveAspectRatio="none">
+    <path d="M0,120 C 240,60 480,160 720,110 C 960,60 1200,150 1440,90 L1440,200 L0,200 Z"></path>
+  </svg>
+  <span class="bubble b1">🫧</span>
+  <span class="bubble b2">🫧</span>
+  <span class="bubble b3">🫧</span>
+</div>
+
+<main id="app" role="main">
+
+  <!-- ============ PANTALLA 1: INICIO ============ -->
+  <section id="screen-start" class="screen active" aria-label="Pantalla de inicio">
+    <div class="card start-card">
+      <h1 class="game-title">
+        <span class="title-fish">🐠</span> Pesca de Números
+      </h1>
+      <p class="game-subtitle">¡Aprende las tablas de multiplicar pescando peces de colores!</p>
+
+      <div class="level-select" id="level-select">
+        <h2 class="section-label">Elige tu nivel</h2>
+        <div class="level-grid" id="level-grid">
+          <!-- Los botones de nivel se generan dinámicamente en game.js -->
+        </div>
+      </div>
+
+      <button id="btn-play" class="btn btn-primary btn-huge">
+        <span>¡Jugar! </span><span aria-hidden="true">🎣</span>
+      </button>
+
+      <div class="start-footer">
+        <button id="btn-how-to-play" class="btn-link">¿Cómo se juega?</button>
+        <button id="btn-reset-progress" class="btn-link btn-link-muted">Reiniciar progreso</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PANTALLA 2: CÓMO JUGAR ============ -->
+  <section id="screen-help" class="screen" aria-label="Instrucciones">
+    <div class="card help-card">
+      <h2 class="section-title">🎓 ¿Cómo se juega?</h2>
+      <ul class="help-list">
+        <li><span class="help-icon">🎡</span> Gira la ruleta para descubrir tu problema de multiplicación.</li>
+        <li><span class="help-icon">🐟</span> Elige la respuesta correcta entre las opciones.</li>
+        <li><span class="help-icon">✅</span> Si aciertas, ¡pescas un pez y avanzas!</li>
+        <li><span class="help-icon">❤️</span> Tienes 3 vidas. Si fallas, ¡pierdes una!</li>
+        <li><span class="help-icon">0️⃣</span> Recuerda: cualquier número multiplicado por 0 es siempre 0.</li>
+        <li><span class="help-icon">🏆</span> Completa los 20 problemas para ganar estrellas y desbloquear el siguiente nivel.</li>
+      </ul>
+      <button class="btn btn-secondary" id="btn-help-back">Entendido, ¡a jugar!</button>
+    </div>
+  </section>
+
+  <!-- ============ PANTALLA 3: JUEGO (RULETA) ============ -->
+  <section id="screen-wheel" class="screen" aria-label="Ruleta de problemas">
+    <div class="card wheel-card">
+      <div class="hud">
+        <div class="hud-item" id="hud-level-name">Nivel</div>
+        <div class="hud-item hud-lives" id="hud-lives">❤️❤️❤️</div>
+        <div class="hud-item" id="hud-progress">0 / 20</div>
+        <div class="hud-item hud-timer" id="hud-timer" hidden>⏱️ --</div>
+      </div>
+
+      <h2 class="wheel-title">¡Gira la ruleta!</h2>
+
+      <div class="wheel-wrapper">
+        <div class="wheel-pointer" aria-hidden="true">▼</div>
+        <svg id="wheel" class="wheel" viewBox="0 0 300 300" aria-hidden="true"></svg>
+        <div class="wheel-hub">🎣</div>
+      </div>
+
+      <button id="btn-spin" class="btn btn-primary btn-huge">¡Girar! 🌀</button>
+    </div>
+  </section>
+
+  <!-- ============ PANTALLA 4: PREGUNTA ============ -->
+  <section id="screen-quiz" class="screen" aria-label="Pregunta de multiplicación">
+    <div class="card quiz-card">
+      <div class="hud">
+        <div class="hud-item" id="hud-level-name-2">Nivel</div>
+        <div class="hud-item hud-lives" id="hud-lives-2">❤️❤️❤️</div>
+        <div class="hud-item" id="hud-progress-2">0 / 20</div>
+        <div class="hud-item hud-timer" id="hud-timer-2" hidden>⏱️ --</div>
+      </div>
+
+      <!-- Estanque de progreso: peces pescados -->
+      <div class="pond" id="pond" aria-label="Progreso: peces pescados"></div>
+
+      <div class="problem-box">
+        <div class="problem-fish" aria-hidden="true">🐡</div>
+        <div class="problem-text" id="problem-text">? × ? = ?</div>
+      </div>
+
+      <div class="answers-grid" id="answers-grid">
+        <!-- Botones de respuesta generados dinámicamente -->
+      </div>
+
+      <div class="feedback" id="feedback" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- ============ PANTALLA 5: NIVEL COMPLETADO ============ -->
+  <section id="screen-victory" class="screen" aria-label="Nivel completado">
+    <div class="card victory-card">
+      <div class="confetti" id="confetti" aria-hidden="true"></div>
+      <h2 class="victory-title">🎉 ¡Nivel completado!</h2>
+      <div class="stars-row" id="stars-row">
+        <span class="star">⭐</span>
+        <span class="star">⭐</span>
+        <span class="star">⭐</span>
+      </div>
+      <p class="victory-message" id="victory-message">¡Excelente trabajo, pescador de números!</p>
+
+      <div class="stats-grid">
+        <div class="stat">
+          <span class="stat-value" id="stat-correct">0</span>
+          <span class="stat-label">Correctas ✅</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="stat-wrong">0</span>
+          <span class="stat-label">Incorrectas ❌</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="stat-time">0s</span>
+          <span class="stat-label">Tiempo ⏱️</span>
+        </div>
+      </div>
+
+      <div class="victory-actions">
+        <button id="btn-retry" class="btn btn-secondary">🔁 Repetir nivel</button>
+        <button id="btn-next-level" class="btn btn-primary">Siguiente nivel ➡️</button>
+        <button id="btn-menu-from-victory" class="btn btn-link-btn">🏠 Menú principal</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PANTALLA 6: JUEGO TERMINADO (sin vidas) ============ -->
+  <section id="screen-gameover" class="screen" aria-label="Juego terminado">
+    <div class="card gameover-card">
+      <h2 class="gameover-title">🌊 ¡Te quedaste sin vidas!</h2>
+      <p class="gameover-message" id="gameover-message">No te preocupes, ¡cada pescador experto también falla! Inténtalo de nuevo.</p>
+      <div class="stats-grid">
+        <div class="stat">
+          <span class="stat-value" id="stat-correct-go">0</span>
+          <span class="stat-label">Correctas ✅</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="stat-wrong-go">0</span>
+          <span class="stat-label">Incorrectas ❌</span>
+        </div>
+      </div>
+      <div class="victory-actions">
+        <button id="btn-retry-go" class="btn btn-primary">🔁 Intentar de nuevo</button>
+        <button id="btn-menu-from-gameover" class="btn btn-link-btn">🏠 Menú principal</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  Hecho con 💙 para pequeños pescadores de números
+</footer>
+
+<script src="js/game.js"></script>
+</body>
+</html>
