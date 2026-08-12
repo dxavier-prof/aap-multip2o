@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MultiPez 🎣 · ¡Pesca las tablas de multiplicar!</title>
+  <meta name="description" content="Juego educativo para primaria: repasa las tablas de multiplicar del 1 al 10 (¡incluida la regla del 0!) girando la ruleta, pescando peces y ganando estrellas." />
+  <meta name="theme-color" content="#7fd4e8" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🎣</text></svg>" />
+
+  <!-- Tipografías redondas (con respaldo local si no hay internet) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ============================================================
+       FONDO MARINO ANIMADO (sol, nubes, olas, peces y burbujas)
+       Los peces y burbujas se generan con JavaScript
+  ============================================================ -->
+  <div class="fondo" aria-hidden="true">
+    <div class="sol"></div>
+    <span class="nube nube-1">☁️</span>
+    <span class="nube nube-2">☁️</span>
+    <span class="nube nube-3">⛅</span>
+
+    <!-- Olas del horizonte (3 capas con velocidades distintas) -->
+    <div class="horizonte">
+      <div class="ola ola-1">
+        <svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0 10 Q 12.5 2, 25 10 T 50 10 T 75 10 T 100 10 L 100 20 L 0 20 Z"/></svg>
+        <svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0 10 Q 12.5 2, 25 10 T 50 10 T 75 10 T 100 10 L 100 20 L 0 20 Z"/></svg>
+      </div>
+      <div class="ola ola-2">
+        <svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0 10 Q 12.5 2, 25 10 T 50 10 T 75 10 T 100 10 L 100 20 L 0 20 Z"/></svg>
+        <svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0 10 Q 12.5 2, 25 10 T 50 10 T 75 10 T 100 10 L 100 20 L 0 20 Z"/></svg>
+      </div>
+      <div class="ola ola-3">
+        <svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0 10 Q 12.5 2, 25 10 T 50 10 T 75 10 T 100 10 L 100 20 L 0 20 Z"/></svg>
+        <svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0 10 Q 12.5 2, 25 10 T 50 10 T 75 10 T 100 10 L 100 20 L 0 20 Z"/></svg>
+      </div>
+    </div>
+
+    <!-- El mar: aquí nadan los peces de fondo y suben las burbujas -->
+    <div class="mar">
+      <div id="fauna" class="fauna"></div>
+      <div id="burbujas" class="burbujas"></div>
+      <span class="fondo-decoro d1">🪸</span>
+      <span class="fondo-decoro d2">⭐</span>
+      <span class="fondo-decoro d3">🌿</span>
+      <span class="fondo-decoro d4">🐚</span>
+    </div>
+  </div>
+
+  <main>
+
+    <!-- ============================================================
+         PANTALLA 1 · INICIO (título + selección de nivel)
+    ============================================================ -->
+    <section id="pantalla-inicio" class="pantalla">
+
+      <header class="barra-superior">
+        <span class="logo-mini">🎣 MultiPez</span>
+        <span class="insignia-record" id="insignia-record" hidden></span>
+        <button class="btn-icono btn-sonido" type="button" aria-label="Activar o silenciar el sonido" aria-pressed="true">🔊</button>
+      </header>
+
+      <div class="escenario-inicio">
+
+        <!-- Columna izquierda: la escena del título -->
+        <div class="titulo-flotante">
+          <span class="saltarin s1" aria-hidden="true">🐠</span>
+          <span class="saltarin s2" aria-hidden="true">🐡</span>
+          <div class="mascota" aria-hidden="true">🎣</div>
+          <h1 class="titulo">Multi<span class="titulo-pez">Pez</span></h1>
+          <p class="subtitulo">¡La gran aventura de las tablas de multiplicar!</p>
+          <p class="regla-magica">✨ Regla mágica: cualquier número × 0 = 0 ✨</p>
+        </div>
+
+        <!-- Columna derecha: panel de niveles -->
+        <section class="panel niveles" aria-labelledby="titulo-niveles">
+          <h2 id="titulo-niveles">🗺️ Elige tu nivel</h2>
+          <div class="tarjetas-nivel" id="tarjetas-nivel"><!-- Tarjetas generadas por JS --></div>
+          <button id="btn-jugar" class="btn-grande" type="button">¡A pescar! 🎣</button>
+        </section>
+      </div>
+
+      <!-- Mini guía para aprender a jugar -->
+      <section class="panel como-jugar" aria-labelledby="titulo-ayuda">
+        <h2 id="titulo-ayuda">¿Cómo se juega?</h2>
+        <ol class="pasos">
+          <li><span class="paso-icono">🎡</span><span><strong>Gira la ruleta</strong> para descubrir tu reto.</span></li>
+          <li><span class="paso-icono">🧮</span><span><strong>Resuelve</strong> la multiplicación.</span></li>
+          <li><span class="paso-icono">🐟</span><span><strong>Atrapa el pez</strong> con la respuesta correcta.</span></li>
+          <li><span class="paso-icono">⭐</span><span><strong>Gana estrellas</strong> y llega al nivel Maestro.</span></li>
+        </ol>
+      </section>
+
+      <footer class="pie">Hecho con 💛 para pequeñas y pequeños matemáticos · MultiPez <span id="anio"></span></footer>
+    </section>
+
+    <!-- ============================================================
+         PANTALLA 2 · JUEGO
+    ============================================================ -->
+    <section id="pantalla-juego" class="pantalla" hidden>
+
+      <!-- HUD: nivel, vidas, ronda, cronómetro y sonido -->
+      <header class="hud">
+        <button id="btn-salir" class="btn-icono" type="button" aria-label="Salir al menú">🏠</button>
+        <span class="chip-nivel" id="chip-nivel">Fácil 🐠</span>
+        <div class="vidas" id="vidas" role="img" aria-label="Vidas restantes"></div>
+        <div class="ronda-info">
+          <span class="ronda-texto" id="texto-ronda">Problema 1 / 20</span>
+          <div class="barra-ronda"><div id="barra-ronda-fill"></div></div>
+        </div>
+        <span class="cronometro" id="cronometro">⏱ 0:00</span>
+        <button class="btn-icono btn-sonido" type="button" aria-label="Activar o silenciar el sonido" aria-pressed="true">🔊</button>
+      </header>
+
+      <div class="zona-juego">
+
+        <!-- El barquito del que "cuelga" la pregunta -->
+        <div class="muelle" aria-hidden="true">
+          <span class="bote">⛵</span>
+          <span class="linea"></span>
+          <span class="anzuelo">🪝</span>
+        </div>
+
+        <!-- Tarjeta de la pregunta -->
+        <div class="tarjeta-pregunta">
+          <p class="pregunta-texto" id="pregunta-texto">¿Cuánto es 2 × 2?</p>
+          <!-- Solo visible en nivel Maestro -->
+          <div class="temporizador" id="temporizador" hidden><div id="temporizador-fill"></div></div>
+        </div>
+
+        <!-- El acuario con los 4 peces-respuesta -->
+        <div class="acuario">
+          <div class="banco-peces" id="banco-peces"></div>
+          <div class="banner-feedback" id="banner-feedback" hidden></div>
+        </div>
+      </div>
+
+      <!-- Red de capturas: historial visual de los 20 problemas -->
+      <footer class="panel-capturas">
+        <p class="capturas-titulo">🪣 Capturas: <strong id="contador-correctas">0</strong> &nbsp;·&nbsp; 💦 Fallos: <strong id="contador-incorrectas">0</strong></p>
+        <div class="red-progreso" id="red-progreso" aria-label="Progreso del nivel"></div>
+      </footer>
+    </section>
+
+    <!-- ============================================================
+         PANTALLA 3 · RESULTADOS (victoria o derrota)
+    ============================================================ -->
+    <section id="pantalla-final" class="pantalla" hidden>
+      <div class="tarjeta-final panel">
+        <div class="final-emoji" id="final-emoji" aria-hidden="true">🏆</div>
+        <h2 id="final-titulo">¡Nivel completado!</h2>
+        <div class="estrellas-final" id="estrellas-final" aria-hidden="true"></div>
+        <p class="final-mensaje" id="final-mensaje"></p>
+        <div class="estadisticas" id="estadisticas"></div>
+        <div class="final-botones">
+          <button id="btn-menu" class="btn-mediano btn-secundario" type="button">🏠 Menú</button>
+          <button id="btn-repetir" class="btn-mediano" type="button">🔁 Repetir</button>
+          <button id="btn-siguiente" class="btn-mediano btn-primario" type="button" hidden>➡️ Siguiente nivel</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============================================================
+       OVERLAY · RULETA DE TABLAS (aparece al inicio de cada ronda)
+  ============================================================ -->
+  <div class="overlay" id="overlay-ruleta" hidden>
+    <div class="tarjeta-ruleta" role="dialog" aria-label="Ruleta de tablas">
+      <h2 class="ruleta-titulo">🎡 ¡Gira la ruleta!</h2>
+      <div class="ruleta-marco">
+        <div class="ruleta-puntero" aria-hidden="true"></div>
+        <div class="ruleta-giro" id="ruleta-giro">
+          <svg id="ruleta-svg" viewBox="0 0 320 320" role="img" aria-label="Ruleta con las tablas de multiplicar"></svg>
+        </div>
+      </div>
+      <p class="ruleta-resultado" id="ruleta-resultado" aria-live="polite">Pulsa GIRAR para descubrir tu reto</p>
+      <button id="btn-girar" class="btn-grande btn-girar" type="button">¡Girar! 🎡</button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       OVERLAY · CONFIRMAR SALIDA
+  ============================================================ -->
+  <div class="overlay" id="overlay-salir" hidden>
+    <div class="tarjeta-confirmar panel" role="dialog" aria-label="¿Salir del juego?">
+      <p class="confirmar-texto">¿Seguro que quieres salir? 🐠<br>Perderás el progreso de esta partida.</p>
+      <div class="confirmar-botones">
+        <button id="confirmar-salir" class="btn-mediano btn-secundario" type="button">Sí, salir</button>
+        <button id="confirmar-seguir" class="btn-mediano btn-primario" type="button">¡Seguir jugando!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contenedor del confeti de victoria -->
+  <div id="confeti" aria-hidden="true"></div>
+
+  <script src="js/game.js"></script>
+</body>
+</html>
