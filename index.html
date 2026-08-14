@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>🎣 Pesca de Números — Aprende las tablas de multiplicar</title>
-<meta name="description" content="Juego educativo de pesca para aprender las tablas de multiplicar del 1 al 10, incluyendo la regla del cero.">
+<meta name="description" content="Juego educativo de aventura marina para aprender las tablas de multiplicar del 1 al 10, incluyendo la regla del cero.">
 
 <!-- Tipografías redondas y amigables para niños (Google Fonts) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -37,7 +37,7 @@
       <h1 class="game-title">
         <span class="title-fish">🐠</span> Pesca de Números
       </h1>
-      <p class="game-subtitle">¡Aprende las tablas de multiplicar pescando peces de colores!</p>
+      <p class="game-subtitle">¡Aprende las tablas de multiplicar en una aventura marina!</p>
 
       <div class="level-select" id="level-select">
         <h2 class="section-label">Elige tu nivel</h2>
@@ -62,9 +62,10 @@
     <div class="card help-card">
       <h2 class="section-title">🎓 ¿Cómo se juega?</h2>
       <ul class="help-list">
-        <li><span class="help-icon">🎡</span> Gira la ruleta para descubrir tu problema de multiplicación.</li>
-        <li><span class="help-icon">🐟</span> Elige la respuesta correcta entre las opciones.</li>
-        <li><span class="help-icon">✅</span> Si aciertas, ¡pescas un pez y avanzas!</li>
+        <li><span class="help-icon">🎡</span> <b>Nivel 1:</b> gira la ruleta para descubrir tu problema.</li>
+        <li><span class="help-icon">🚤</span> <b>Nivel 2:</b> dispara al blanco flotante con la respuesta correcta.</li>
+        <li><span class="help-icon">📦</span> <b>Nivel 3:</b> rompe la caja del carguero y elige la respuesta correcta.</li>
+        <li><span class="help-icon">🌊</span> <b>Nivel 4:</b> ¡mezcla de los tres, contra el tiempo!</li>
         <li><span class="help-icon">❤️</span> Tienes 3 vidas. Si fallas, ¡pierdes una!</li>
         <li><span class="help-icon">0️⃣</span> Recuerda: cualquier número multiplicado por 0 es siempre 0.</li>
         <li><span class="help-icon">🏆</span> Completa los 20 problemas para ganar estrellas y desbloquear el siguiente nivel.</li>
@@ -73,14 +74,15 @@
     </div>
   </section>
 
-  <!-- ============ PANTALLA 3: JUEGO (RULETA) ============ -->
+  <!-- ============ PANTALLA 3: NIVEL 1 — RULETA ============ -->
   <section id="screen-wheel" class="screen" aria-label="Ruleta de problemas">
     <div class="card wheel-card">
+      <button class="btn-back js-btn-back" aria-label="Volver al menú">⬅️ Menú</button>
       <div class="hud">
-        <div class="hud-item" id="hud-level-name">Nivel</div>
-        <div class="hud-item hud-lives" id="hud-lives">❤️❤️❤️</div>
-        <div class="hud-item" id="hud-progress">0 / 20</div>
-        <div class="hud-item hud-timer" id="hud-timer" hidden>⏱️ --</div>
+        <div class="hud-item js-hud-level-name">Nivel</div>
+        <div class="hud-item hud-lives js-hud-lives">❤️❤️❤️</div>
+        <div class="hud-item js-hud-progress">0 / 20</div>
+        <div class="hud-item hud-timer js-hud-timer" hidden>⏱️ --</div>
       </div>
 
       <h2 class="wheel-title">¡Gira la ruleta!</h2>
@@ -95,18 +97,19 @@
     </div>
   </section>
 
-  <!-- ============ PANTALLA 4: PREGUNTA ============ -->
+  <!-- ============ PANTALLA 4: PREGUNTA (usada tras la ruleta) ============ -->
   <section id="screen-quiz" class="screen" aria-label="Pregunta de multiplicación">
     <div class="card quiz-card">
+      <button class="btn-back js-btn-back" aria-label="Volver al menú">⬅️ Menú</button>
       <div class="hud">
-        <div class="hud-item" id="hud-level-name-2">Nivel</div>
-        <div class="hud-item hud-lives" id="hud-lives-2">❤️❤️❤️</div>
-        <div class="hud-item" id="hud-progress-2">0 / 20</div>
-        <div class="hud-item hud-timer" id="hud-timer-2" hidden>⏱️ --</div>
+        <div class="hud-item js-hud-level-name">Nivel</div>
+        <div class="hud-item hud-lives js-hud-lives">❤️❤️❤️</div>
+        <div class="hud-item js-hud-progress">0 / 20</div>
+        <div class="hud-item hud-timer js-hud-timer" hidden>⏱️ --</div>
       </div>
 
       <!-- Estanque de progreso: peces pescados -->
-      <div class="pond" id="pond" aria-label="Progreso: peces pescados"></div>
+      <div class="pond js-pond" aria-label="Progreso: peces pescados"></div>
 
       <div class="problem-box">
         <div class="problem-fish" aria-hidden="true">🐡</div>
@@ -121,7 +124,65 @@
     </div>
   </section>
 
-  <!-- ============ PANTALLA 5: NIVEL COMPLETADO ============ -->
+  <!-- ============ PANTALLA 5: NIVEL 2 — DISPARO SUBMARINO ============ -->
+  <section id="screen-shoot" class="screen" aria-label="Nivel de disparo submarino">
+    <div class="card shoot-card">
+      <button class="btn-back js-btn-back" aria-label="Volver al menú">⬅️ Menú</button>
+      <div class="hud">
+        <div class="hud-item js-hud-level-name">Nivel</div>
+        <div class="hud-item hud-lives js-hud-lives">❤️❤️❤️</div>
+        <div class="hud-item js-hud-progress">0 / 20</div>
+        <div class="hud-item hud-timer js-hud-timer" hidden>⏱️ --</div>
+      </div>
+
+      <div class="pond js-pond" aria-label="Progreso"></div>
+
+      <div class="problem-box shoot-problem">
+        <div class="problem-text" id="shoot-problem-text">? × ? = ?</div>
+      </div>
+      <p class="mode-hint">🎯 ¡Toca el blanco con la respuesta correcta!</p>
+
+      <div class="sea-scene" id="sea-scene">
+        <div class="ship" aria-hidden="true">🚤</div>
+        <!-- Los blancos (minas numeradas) se generan dinámicamente -->
+      </div>
+
+      <div class="feedback" id="shoot-feedback" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- ============ PANTALLA 6: NIVEL 3 — CAJAS DE CARGUERO ============ -->
+  <section id="screen-crate" class="screen" aria-label="Nivel de cajas de carguero">
+    <div class="card crate-card">
+      <button class="btn-back js-btn-back" aria-label="Volver al menú">⬅️ Menú</button>
+      <div class="hud">
+        <div class="hud-item js-hud-level-name">Nivel</div>
+        <div class="hud-item hud-lives js-hud-lives">❤️❤️❤️</div>
+        <div class="hud-item js-hud-progress">0 / 20</div>
+        <div class="hud-item hud-timer js-hud-timer" hidden>⏱️ --</div>
+      </div>
+
+      <div class="pond js-pond" aria-label="Progreso"></div>
+
+      <div class="crate-scene" id="crate-scene">
+        <span class="crate-deco crate-deco-1" aria-hidden="true">📦</span>
+        <span class="crate-deco crate-deco-2" aria-hidden="true">📦</span>
+        <button class="crate" id="crate-box" aria-label="Romper la caja">📦</button>
+        <p class="mode-hint" id="crate-hint">🚢 ¡Toca la caja para romperla!</p>
+      </div>
+
+      <div class="crate-question" id="crate-question" hidden>
+        <div class="problem-box">
+          <div class="problem-text" id="crate-problem-text">? × ? = ?</div>
+        </div>
+        <div class="answers-grid" id="crate-answers-grid"></div>
+      </div>
+
+      <div class="feedback" id="crate-feedback" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- ============ PANTALLA 7: NIVEL COMPLETADO ============ -->
   <section id="screen-victory" class="screen" aria-label="Nivel completado">
     <div class="card victory-card">
       <div class="confetti" id="confetti" aria-hidden="true"></div>
@@ -156,7 +217,7 @@
     </div>
   </section>
 
-  <!-- ============ PANTALLA 6: JUEGO TERMINADO (sin vidas) ============ -->
+  <!-- ============ PANTALLA 8: JUEGO TERMINADO (sin vidas) ============ -->
   <section id="screen-gameover" class="screen" aria-label="Juego terminado">
     <div class="card gameover-card">
       <h2 class="gameover-title">🌊 ¡Te quedaste sin vidas!</h2>
