@@ -2,6 +2,12 @@
    PESCA DE NÚMEROS
    Juego educativo de tablas de multiplicar (1-10 + regla del 0)
    JavaScript vanilla — sin dependencias externas
+
+   Mecánicas por nivel:
+   - Nivel 1 (Fácil):     Ruleta -> pregunta de opción múltiple
+   - Nivel 2 (Medio):     Nave que dispara a blancos flotantes
+   - Nivel 3 (Avanzado):  Cajas de carguero que se rompen y revelan opciones
+   - Nivel 4 (Maestro):   Mezcla aleatoria de los 3 mecanismos + tiempo límite
    ============================================================= */
 
 'use strict';
@@ -14,10 +20,11 @@ const LEVELS = [
     id: 0,
     name: 'Fácil',
     emoji: '🐟',
-    subtitle: 'Tablas 1, 2, 5, 10',
+    subtitle: '1, 2, 5, 10 · 🎡 Ruleta',
+    mode: 'wheel',
     tables: [0, 1, 2, 5, 10],
     problemCount: 20,
-    timeLimit: null,      // sin límite de tiempo
+    timeLimit: null,
     shuffleOrder: false,
     twoDigitChance: 0,
     color: '#4ECDC4'
@@ -26,7 +33,8 @@ const LEVELS = [
     id: 1,
     name: 'Medio',
     emoji: '🐠',
-    subtitle: 'Tablas del 1 al 6',
+    subtitle: 'Tablas 1-6 · 🚤 Disparo',
+    mode: 'shoot',
     tables: [0, 1, 2, 3, 4, 5, 6],
     problemCount: 20,
     timeLimit: null,
@@ -38,7 +46,8 @@ const LEVELS = [
     id: 2,
     name: 'Avanzado',
     emoji: '🦈',
-    subtitle: 'Tablas del 1 al 10',
+    subtitle: 'Tablas 1-10 · 📦 Cajas',
+    mode: 'crate',
     tables: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     problemCount: 20,
     timeLimit: null,
@@ -50,16 +59,18 @@ const LEVELS = [
     id: 3,
     name: 'Maestro',
     emoji: '🐋',
-    subtitle: 'Tablas 1-10 + reto extra',
+    subtitle: 'Tablas 1-10 · 🌊 Mezcla + tiempo',
+    mode: 'mixed',
     tables: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
     problemCount: 20,
-    timeLimit: 150, // segundos para todo el nivel
+    timeLimit: 240, // 4 minutos para todo el nivel
     shuffleOrder: true,
     twoDigitChance: 0.18, // probabilidad de usar 11 o 12 como factor
     color: '#F14C4C'
   }
 ];
 
+const MIXED_MODES = ['wheel', 'shoot', 'crate'];
 const ZERO_RULE_CHANCE = 0.14; // probabilidad de forzar un problema "x0"
 const TOTAL_LIVES = 3;
 const FISH_EMOJIS = ['🐟', '🐠', '🐡', '🦐', '🦑', '🐙'];
@@ -75,12 +86,16 @@ const state = {
   wrongCount: 0,
   lives: TOTAL_LIVES,
   currentProblem: null,
+  currentMode: 'wheel',
   startTime: null,
   elapsedSeconds: 0,
   timerInterval: null,
   timeRemaining: null,
   wheelRotation: 0,
-  answering: false // evita doble click mientras se procesa una respuesta
+  spinning: false,
+  answering: false, // evita doble click mientras se procesa una respuesta
+  caughtItems: [],  // emojis capturados, usados para pintar el "pond" en cada pantalla
+  levelActive: false // false cuando el jugador está en el menú (evita que timeouts pendientes reingresen al juego)
 };
 
 /* -------------------------------------------------------------
@@ -156,6 +171,8 @@ const AudioFX = (() => {
     correct() { tone(660, 0.12, 'triangle', 0); tone(880, 0.16, 'triangle', 0.1); },
     wrong() { tone(180, 0.25, 'sawtooth', 0, 0.12); },
     spin() { tone(440, 0.08, 'square', 0, 0.05); },
+    shoot() { tone(900, 0.06, 'square', 0, 0.05); tone(300, 0.1, 'square', 0.05, 0.05); },
+    crateBreak() { tone(220, 0.08, 'square', 0, 0.1); tone(140, 0.12, 'square', 0.06, 0.1); },
     win() {
       [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.18, 'triangle', i * 0.12));
     },
@@ -166,8 +183,8 @@ const AudioFX = (() => {
 /* -------------------------------------------------------------
    5. UTILIDADES
    ------------------------------------------------------------- */
-function $(selector) { return document.querySelector(selector); }
-function $all(selector) { return Array.from(document.querySelectorAll(selector)); }
+function $(selector, root) { return (root || document).querySelector(selector); }
+function $all(selector, root) { return Array.from((root || document).querySelectorAll(selector)); }
 function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function pickRandom(arr) { return arr[randInt(0, arr.length - 1)]; }
 
@@ -254,7 +271,89 @@ function shuffleArray(arr) {
 }
 
 /* -------------------------------------------------------------
-   7. RULETA (SVG dinámico)
+   7. FLUJO GENERAL DE NIVEL Y RONDAS
+   ------------------------------------------------------------- */
+function startLevel(levelIndex) {
+  state.levelIndex = levelIndex;
+  state.problemIndex = 0;
+  state.correctCount = 0;
+  state.wrongCount = 0;
+  state.lives = TOTAL_LIVES;
+  state.startTime = Date.now();
+  state.elapsedSeconds = 0;
+  state.answering = false;
+  state.caughtItems = [];
+  state.levelActive = true;
+
+  const level = LEVELS[levelIndex];
+  renderPond();
+  updateHUD();
+
+  if (level.timeLimit) {
+    state.timeRemaining = level.timeLimit;
+    startCountdown();
+  } else {
+    stopCountdown();
+    $all('.js-hud-timer').forEach(el => { el.hidden = true; });
+  }
+
+  beginRound();
+}
+
+// Decide qué mecánica mostrar para el problema actual y prepara la pantalla correspondiente
+function beginRound() {
+  const level = LEVELS[state.levelIndex];
+  state.answering = false;
+  state.currentMode = level.mode === 'mixed' ? pickRandom(MIXED_MODES) : level.mode;
+
+  if (state.currentMode === 'wheel') {
+    buildWheel(level);
+    showScreen('screen-wheel');
+  } else {
+    const forcedTable = pickRandom(level.tables);
+    state.currentProblem = generateProblem(level, forcedTable);
+    if (state.currentMode === 'shoot') {
+      renderShootScreen();
+      showScreen('screen-shoot');
+    } else {
+      renderCrateScreen();
+      showScreen('screen-crate');
+    }
+  }
+  updateHUD();
+}
+
+// Bookkeeping compartido tras cada respuesta (correcta o incorrecta)
+function finishAnswer(isCorrect) {
+  if (isCorrect) {
+    state.correctCount++;
+    AudioFX.correct();
+    state.caughtItems.push(pickRandom(FISH_EMOJIS));
+    renderPond();
+  } else {
+    state.wrongCount++;
+    state.lives--;
+  }
+  updateHUD();
+
+  const delay = isCorrect ? 950 : 1500;
+  setTimeout(() => {
+    if (!state.levelActive) return; // el jugador salió al menú antes de que terminara el retraso
+    if (state.lives <= 0) {
+      endLevelGameOver();
+      return;
+    }
+    state.problemIndex++;
+    if (state.problemIndex >= LEVELS[state.levelIndex].problemCount) {
+      endLevelVictory();
+    } else {
+      beginRound();
+    }
+  }, delay);
+}
+
+/* -------------------------------------------------------------
+   8. NIVEL 1 — RULETA
    ------------------------------------------------------------- */
 function buildWheel(level) {
   const svg = $('#wheel');
@@ -275,7 +374,6 @@ function buildWheel(level) {
     slice.setAttribute('stroke-width', '2');
     svg.appendChild(slice);
 
-    // Etiqueta de texto centrada en la porción
     const midAngle = startAngle + anglePer / 2;
     const labelR = r * 0.68;
     const pos = polarToCartesian(cx, cy, labelR, midAngle);
@@ -296,6 +394,9 @@ function buildWheel(level) {
   state.wheelAnglePer = anglePer;
   state.wheelRotation = 0;
   svg.style.transform = 'rotate(0deg)';
+
+  const spinBtn = $('#btn-spin');
+  spinBtn.disabled = false;
 }
 
 function polarToCartesian(cx, cy, radius, angleDeg) {
@@ -325,8 +426,6 @@ function spinWheel() {
   const anglePer = state.wheelAnglePer;
   const targetIndex = randInt(0, tables.length - 1);
 
-  // El puntero apunta hacia arriba (0°). Calculamos cuánto rotar para que
-  // el centro de la porción elegida quede bajo el puntero.
   const targetSliceCenter = targetIndex * anglePer + anglePer / 2;
   const extraSpins = 360 * randInt(4, 6);
   const finalRotation = state.wheelRotation + extraSpins + (360 - targetSliceCenter) - (state.wheelRotation % 360);
@@ -337,50 +436,21 @@ function spinWheel() {
 
   setTimeout(() => {
     state.spinning = false;
+    if (!state.levelActive) return; // el jugador salió al menú mientras giraba la ruleta
     const chosenTable = tables[targetIndex];
-    startProblem(chosenTable);
+    startQuizProblem(chosenTable);
   }, 3300);
 }
 
-/* -------------------------------------------------------------
-   8. FLUJO DE PREGUNTAS
-   ------------------------------------------------------------- */
-function startLevel(levelIndex) {
-  state.levelIndex = levelIndex;
-  state.problemIndex = 0;
-  state.correctCount = 0;
-  state.wrongCount = 0;
-  state.lives = TOTAL_LIVES;
-  state.startTime = Date.now();
-  state.elapsedSeconds = 0;
-  state.answering = false;
-
-  const level = LEVELS[levelIndex];
-  $('#pond').innerHTML = '';
-  updateHUD();
-
-  if (level.timeLimit) {
-    state.timeRemaining = level.timeLimit;
-    startCountdown();
-  } else {
-    stopCountdown();
-    $('#hud-timer').hidden = true;
-    $('#hud-timer-2').hidden = true;
-  }
-
-  buildWheel(level);
-  showScreen('screen-wheel');
-}
-
-function startProblem(forcedTable) {
+function startQuizProblem(forcedTable) {
   const level = LEVELS[state.levelIndex];
   state.currentProblem = generateProblem(level, forcedTable);
   state.answering = false;
-  renderProblem();
+  renderQuizScreen();
   showScreen('screen-quiz');
 }
 
-function renderProblem() {
+function renderQuizScreen() {
   const problem = state.currentProblem;
   $('#problem-text').textContent = problem.text;
   $('#feedback').textContent = '';
@@ -395,71 +465,246 @@ function renderProblem() {
     btn.className = 'answer-btn';
     btn.textContent = value;
     btn.setAttribute('aria-label', `Respuesta ${value}`);
-    btn.addEventListener('click', () => handleAnswer(value, btn));
+    btn.addEventListener('click', () => handleQuizAnswer(value, btn));
     grid.appendChild(btn);
   });
 
   updateHUD();
 }
 
-function handleAnswer(selectedValue, btnEl) {
+function handleQuizAnswer(selectedValue, btnEl) {
   if (state.answering) return;
   state.answering = true;
 
   const problem = state.currentProblem;
   const isCorrect = selectedValue === problem.answer;
-  const allButtons = $all('.answer-btn');
+  const allButtons = $all('#answers-grid .answer-btn');
   allButtons.forEach(b => (b.disabled = true));
 
   const feedback = $('#feedback');
-
   if (isCorrect) {
     btnEl.classList.add('correct');
-    state.correctCount++;
-    AudioFX.correct();
-    feedback.textContent = pickRandom([
-      '¡Genial! 🎉', '¡Excelente pesca! 🐟', '¡Correcto! 🌟', '¡Así se hace! 👏'
-    ]);
+    feedback.textContent = pickRandom(['¡Genial! 🎉', '¡Excelente pesca! 🐟', '¡Correcto! 🌟', '¡Así se hace! 👏']);
     feedback.classList.add('feedback-good');
-    addFishToPond();
   } else {
     btnEl.classList.add('wrong');
-    state.wrongCount++;
-    state.lives--;
-    AudioFX.wrong();
     feedback.textContent = `Casi... la respuesta correcta es ${problem.answer}`;
     feedback.classList.add('feedback-bad');
-    allButtons.forEach(b => {
-      if (Number(b.textContent) === problem.answer) b.classList.add('correct');
-    });
+    allButtons.forEach(b => { if (Number(b.textContent) === problem.answer) b.classList.add('correct'); });
   }
 
-  updateHUD();
-
-  setTimeout(() => {
-    if (state.lives <= 0) {
-      endLevelGameOver();
-      return;
-    }
-    state.problemIndex++;
-    if (state.problemIndex >= LEVELS[state.levelIndex].problemCount) {
-      endLevelVictory();
-    } else {
-      showScreen('screen-wheel');
-    }
-  }, isCorrect ? 950 : 1500);
-}
-
-function addFishToPond() {
-  const pond = $('#pond');
-  const span = document.createElement('span');
-  span.className = 'fish-caught';
-  span.textContent = pickRandom(FISH_EMOJIS);
-  pond.appendChild(span);
+  finishAnswer(isCorrect);
 }
 
 /* -------------------------------------------------------------
-   9. HUD (vidas, progreso, tiempo)
+   9. NIVEL 2 — DISPARO SUBMARINO
+   ------------------------------------------------------------- */
+function renderShootScreen() {
+  const problem = state.currentProblem;
+  $('#shoot-problem-text').textContent = problem.text;
+  const feedback = $('#shoot-feedback');
+  feedback.textContent = '';
+  feedback.className = 'feedback';
+
+  const scene = $('#sea-scene');
+  // Limpiamos blancos anteriores (conservamos la nave)
+  $all('.target-mine, .torpedo, .explosion', scene).forEach(el => el.remove());
+
+  const choices = generateChoices(problem);
+  // Distribuimos los blancos en distintas filas/columnas para que no se encimen
+  const positions = layoutTargets(choices.length);
+
+  choices.forEach((value, i) => {
+    const target = document.createElement('button');
+    target.className = 'target-mine';
+    target.textContent = value;
+    target.style.left = `${positions[i].left}%`;
+    target.style.top = `${positions[i].top}%`;
+    target.style.animationDelay = `${(i * 0.3).toFixed(2)}s`;
+    target.setAttribute('aria-label', `Disparar a ${value}`);
+    target.addEventListener('click', () => handleShootAnswer(value, target));
+    scene.appendChild(target);
+  });
+
+  updateHUD();
+}
+
+function layoutTargets(count) {
+  // Genera posiciones (en %) repartidas en 2 filas, evitando el área de la nave
+  const cols = Math.ceil(count / 2);
+  const positions = [];
+  for (let i = 0; i < count; i++) {
+    const row = i % 2;
+    const col = Math.floor(i / 2);
+    const left = 15 + col * (70 / Math.max(cols - 1, 1)) + randInt(-4, 4);
+    const top = row === 0 ? 26 + randInt(-6, 6) : 52 + randInt(-6, 6);
+    positions.push({ left: Math.min(Math.max(left, 10), 90), top });
+  }
+  return shuffleArray(positions);
+}
+
+function handleShootAnswer(selectedValue, targetEl) {
+  if (state.answering) return;
+  state.answering = true;
+
+  const problem = state.currentProblem;
+  const isCorrect = selectedValue === problem.answer;
+  const scene = $('#sea-scene');
+  const ship = $('.ship', scene);
+
+  $all('.target-mine', scene).forEach(t => { t.disabled = true; t.style.cursor = 'default'; });
+
+  AudioFX.shoot();
+  fireTorpedo(scene, ship, targetEl, () => {
+    const feedback = $('#shoot-feedback');
+    if (isCorrect) {
+      targetEl.classList.add('hit');
+      feedback.textContent = pickRandom(['¡Impacto directo! 🎯', '¡Blanco destruido! 💥', '¡Excelente puntería! 🚤']);
+      feedback.classList.add('feedback-good');
+    } else {
+      targetEl.classList.add('miss');
+      feedback.textContent = `¡Fallaste! La respuesta correcta era ${problem.answer}`;
+      feedback.classList.add('feedback-bad');
+      const correctTarget = $all('.target-mine', scene).find(t => Number(t.textContent) === problem.answer);
+      if (correctTarget) correctTarget.classList.add('hit');
+    }
+    finishAnswer(isCorrect);
+  });
+}
+
+function fireTorpedo(scene, shipEl, targetEl, onDone) {
+  const sceneRect = scene.getBoundingClientRect();
+  const shipRect = shipEl.getBoundingClientRect();
+  const targetRect = targetEl.getBoundingClientRect();
+
+  const startX = shipRect.left + shipRect.width / 2 - sceneRect.left;
+  const startY = shipRect.top - sceneRect.top;
+  const endX = targetRect.left + targetRect.width / 2 - sceneRect.left;
+  const endY = targetRect.top + targetRect.height / 2 - sceneRect.top;
+
+  const torpedo = document.createElement('span');
+  torpedo.className = 'torpedo';
+  torpedo.textContent = '💨';
+  torpedo.style.left = `${startX}px`;
+  torpedo.style.top = `${startY}px`;
+  scene.appendChild(torpedo);
+
+  // Forzamos reflow para que la transición se aplique desde la posición inicial
+  // eslint-disable-next-line no-unused-expressions
+  torpedo.offsetHeight;
+
+  requestAnimationFrame(() => {
+    torpedo.style.left = `${endX}px`;
+    torpedo.style.top = `${endY}px`;
+  });
+
+  setTimeout(() => {
+    torpedo.remove();
+    const explosion = document.createElement('span');
+    explosion.className = 'explosion';
+    explosion.textContent = '💥';
+    explosion.style.left = `${endX}px`;
+    explosion.style.top = `${endY}px`;
+    scene.appendChild(explosion);
+    setTimeout(() => explosion.remove(), 500);
+    onDone();
+  }, 300);
+}
+
+/* -------------------------------------------------------------
+   10. NIVEL 3 — CAJAS DE CARGUERO
+   ------------------------------------------------------------- */
+function renderCrateScreen() {
+  const crateBox = $('#crate-box');
+  crateBox.className = 'crate';
+  crateBox.textContent = '📦';
+  crateBox.disabled = false;
+  $('#crate-hint').hidden = false;
+  $('#crate-scene').hidden = false;
+  $('#crate-question').hidden = true;
+  $('#crate-feedback').textContent = '';
+  $('#crate-feedback').className = 'feedback';
+
+  // Se vuelve a asignar el listener (clonamos para limpiar listeners previos)
+  const freshCrate = crateBox.cloneNode(true);
+  crateBox.parentNode.replaceChild(freshCrate, crateBox);
+  freshCrate.addEventListener('click', handleCrateOpen);
+
+  updateHUD();
+}
+
+function handleCrateOpen() {
+  const crateBox = $('#crate-box');
+  if (crateBox.disabled) return;
+  crateBox.disabled = true;
+  AudioFX.crateBreak();
+  crateBox.classList.add('breaking');
+
+  setTimeout(() => {
+    crateBox.classList.remove('breaking');
+    crateBox.classList.add('broken');
+    $('#crate-hint').hidden = true;
+
+    setTimeout(() => {
+      $('#crate-scene').hidden = true;
+      revealCrateQuestion();
+    }, 250);
+  }, 400);
+}
+
+function revealCrateQuestion() {
+  const problem = state.currentProblem;
+  $('#crate-problem-text').textContent = problem.text;
+  $('#crate-question').hidden = false;
+
+  const choices = generateChoices(problem);
+  const grid = $('#crate-answers-grid');
+  grid.innerHTML = '';
+
+  choices.forEach(value => {
+    const btn = document.createElement('button');
+    btn.className = 'answer-btn';
+    btn.textContent = value;
+    btn.setAttribute('aria-label', `Respuesta ${value}`);
+    btn.addEventListener('click', () => handleCrateAnswer(value, btn));
+    grid.appendChild(btn);
+  });
+}
+
+function handleCrateAnswer(selectedValue, btnEl) {
+  if (state.answering) return;
+  state.answering = true;
+
+  const problem = state.currentProblem;
+  const isCorrect = selectedValue === problem.answer;
+  const allButtons = $all('#crate-answers-grid .answer-btn');
+  allButtons.forEach(b => (b.disabled = true));
+
+  const feedback = $('#crate-feedback');
+  if (isCorrect) {
+    btnEl.classList.add('correct');
+    feedback.textContent = pickRandom(['¡Mercancía asegurada! 📦✅', '¡Buen hallazgo! 🌟', '¡Correcto! 👏']);
+    feedback.classList.add('feedback-good');
+  } else {
+    btnEl.classList.add('wrong');
+    feedback.textContent = `Casi... la respuesta correcta es ${problem.answer}`;
+    feedback.classList.add('feedback-bad');
+    allButtons.forEach(b => { if (Number(b.textContent) === problem.answer) b.classList.add('correct'); });
+  }
+
+  finishAnswer(isCorrect);
+}
+
+/* -------------------------------------------------------------
+   11. PROGRESO VISUAL COMPARTIDO (pond / bodega)
+   ------------------------------------------------------------- */
+function renderPond() {
+  const html = state.caughtItems.map(emoji => `<span class="fish-caught">${emoji}</span>`).join('');
+  $all('.js-pond').forEach(pond => { pond.innerHTML = html; });
+}
+
+/* -------------------------------------------------------------
+   12. HUD (vidas, progreso, tiempo, nombre de nivel)
    ------------------------------------------------------------- */
 function updateHUD() {
   const level = LEVELS[state.levelIndex];
@@ -467,16 +712,15 @@ function updateHUD() {
   const progressStr = `${Math.min(state.problemIndex + 1, level.problemCount)} / ${level.problemCount}`;
   const levelLabel = `${level.emoji} ${level.name}`;
 
-  ['#hud-lives', '#hud-lives-2'].forEach(sel => { $(sel).textContent = heartsStr; });
-  ['#hud-progress', '#hud-progress-2'].forEach(sel => { $(sel).textContent = progressStr; });
-  ['#hud-level-name', '#hud-level-name-2'].forEach(sel => { $(sel).textContent = levelLabel; });
+  $all('.js-hud-lives').forEach(el => { el.textContent = heartsStr; });
+  $all('.js-hud-progress').forEach(el => { el.textContent = progressStr; });
+  $all('.js-hud-level-name').forEach(el => { el.textContent = levelLabel; });
 }
 
 function startCountdown() {
   stopCountdown();
   updateTimerDisplay();
-  $('#hud-timer').hidden = false;
-  $('#hud-timer-2').hidden = false;
+  $all('.js-hud-timer').forEach(el => { el.hidden = false; });
 
   state.timerInterval = setInterval(() => {
     state.timeRemaining--;
@@ -496,25 +740,22 @@ function stopCountdown() {
 }
 
 function updateTimerDisplay() {
-  const t = state.timeRemaining;
-  const mins = Math.floor(t / 60).toString().padStart(1, '0');
+  const t = Math.max(state.timeRemaining, 0);
+  const mins = Math.floor(t / 60);
   const secs = (t % 60).toString().padStart(2, '0');
   const text = `⏱️ ${mins}:${secs}`;
-  ['#hud-timer', '#hud-timer-2'].forEach(sel => {
-    const el = $(sel);
+  $all('.js-hud-timer').forEach(el => {
     el.textContent = text;
     el.classList.toggle('warning', t <= 20);
   });
 }
 
 /* -------------------------------------------------------------
-   10. FIN DE NIVEL: VICTORIA / GAME OVER
+   13. FIN DE NIVEL: VICTORIA / GAME OVER
    ------------------------------------------------------------- */
 function calculateStars() {
   const total = state.correctCount + state.wrongCount;
   const accuracy = total > 0 ? state.correctCount / total : 0;
-  const usedAllLives = state.lives <= 0;
-  if (usedAllLives) return 1;
   if (accuracy >= 0.9 && state.wrongCount <= 1) return 3;
   if (accuracy >= 0.7) return 2;
   return 1;
@@ -525,7 +766,7 @@ function endLevelVictory() {
   state.elapsedSeconds = Math.round((Date.now() - state.startTime) / 1000);
 
   const stars = calculateStars();
-  const progress = unlockLevel(state.levelIndex, stars);
+  unlockLevel(state.levelIndex, stars);
 
   $('#stat-correct').textContent = state.correctCount;
   $('#stat-wrong').textContent = state.wrongCount;
@@ -550,7 +791,7 @@ function endLevelVictory() {
   launchConfetti();
   AudioFX.win();
   showScreen('screen-victory');
-  renderLevelGrid(); // refresca candados/estrellas del menú
+  renderLevelGrid();
 }
 
 function endLevelGameOver(byTimeout) {
@@ -578,7 +819,7 @@ function launchConfetti() {
 }
 
 /* -------------------------------------------------------------
-   11. MENÚ PRINCIPAL: SELECCIÓN DE NIVEL
+   14. MENÚ PRINCIPAL: SELECCIÓN DE NIVEL
    ------------------------------------------------------------- */
 let selectedLevelIndex = 0;
 
@@ -620,7 +861,7 @@ function renderLevelGrid() {
 }
 
 /* -------------------------------------------------------------
-   12. EVENTOS DE INTERFAZ
+   15. EVENTOS DE INTERFAZ
    ------------------------------------------------------------- */
 function initEvents() {
   $('#btn-play').addEventListener('click', () => {
@@ -628,11 +869,7 @@ function initEvents() {
     startLevel(selectedLevelIndex);
   });
 
-  $('#btn-spin').addEventListener('click', () => {
-    $('#btn-spin').disabled = true;
-    spinWheel();
-    setTimeout(() => { $('#btn-spin').disabled = false; }, 3400);
-  });
+  $('#btn-spin').addEventListener('click', spinWheel);
 
   $('#btn-how-to-play').addEventListener('click', () => showScreen('screen-help'));
   $('#btn-help-back').addEventListener('click', () => showScreen('screen-start'));
@@ -648,6 +885,14 @@ function initEvents() {
   $('#btn-menu-from-victory').addEventListener('click', backToMenu);
   $('#btn-menu-from-gameover').addEventListener('click', backToMenu);
 
+  // Botón "⬅️ Menú" presente en las 4 pantallas de juego (ruleta, pregunta, disparo, cajas)
+  $all('.js-btn-back').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const confirmExit = confirm('¿Seguro que quieres volver al menú? Perderás el progreso de este nivel.');
+      if (confirmExit) backToMenu();
+    });
+  });
+
   $('#btn-reset-progress').addEventListener('click', () => {
     if (confirm('¿Seguro que quieres borrar todo tu progreso guardado?')) {
       localStorage.removeItem(STORAGE_KEY);
@@ -659,12 +904,15 @@ function initEvents() {
 
 function backToMenu() {
   stopCountdown();
+  state.spinning = false;
+  state.answering = true; // evita nuevos clics mientras se desmonta la pantalla de juego
+  state.levelActive = false; // invalida cualquier setTimeout pendiente (spin, torpedo, feedback...)
   renderLevelGrid();
   showScreen('screen-start');
 }
 
 /* -------------------------------------------------------------
-   13. INICIALIZACIÓN
+   16. INICIALIZACIÓN
    ------------------------------------------------------------- */
 function init() {
   renderLevelGrid();
