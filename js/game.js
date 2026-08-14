@@ -1,923 +1,787 @@
-/* =============================================================
-   PESCA DE NÚMEROS
-   Juego educativo de tablas de multiplicar (1-10 + regla del 0)
-   JavaScript vanilla — sin dependencias externas
+/* =========================================================
+   PESCA DE NÚMEROS — Hoja de estilos principal
+   Tema: aventura marina | Paleta: pastel alegre
+   ========================================================= */
 
-   Mecánicas por nivel:
-   - Nivel 1 (Fácil):     Ruleta -> pregunta de opción múltiple
-   - Nivel 2 (Medio):     Nave que dispara a blancos flotantes
-   - Nivel 3 (Avanzado):  Cajas de carguero que se rompen y revelan opciones
-   - Nivel 4 (Maestro):   Mezcla aleatoria de los 3 mecanismos + tiempo límite
-   ============================================================= */
+:root {
+  /* Paleta pastel */
+  --sky:        #7ECBE8;
+  --sky-deep:   #4FB3D9;
+  --aqua:       #4ECDC4;
+  --aqua-deep:  #2FB6AC;
+  --sun:        #FFD93D;
+  --sun-deep:   #F5B700;
+  --orange:     #FFB570;
+  --orange-deep:#FF9A4D;
+  --coral:      #FF6B6B;
+  --coral-deep: #F14C4C;
+  --ink:        #274156;
+  --ink-soft:   #3E5C76;
+  --white:      #FFFFFF;
+  --cream:      #FFFDF6;
+  --success:    #4CD787;
+  --wood:       #C88B4A;
+  --wood-deep:  #A96A2E;
+  --shadow:     0 6px 0 rgba(39, 65, 86, 0.15);
 
-'use strict';
+  --radius-lg: 28px;
+  --radius-md: 18px;
+  --radius-sm: 12px;
 
-/* -------------------------------------------------------------
-   1. CONFIGURACIÓN DE NIVELES
-   ------------------------------------------------------------- */
-const LEVELS = [
-  {
-    id: 0,
-    name: 'Fácil',
-    emoji: '🐟',
-    subtitle: '1, 2, 5, 10 · 🎡 Ruleta',
-    mode: 'wheel',
-    tables: [0, 1, 2, 5, 10],
-    problemCount: 20,
-    timeLimit: null,
-    shuffleOrder: false,
-    twoDigitChance: 0,
-    color: '#4ECDC4'
-  },
-  {
-    id: 1,
-    name: 'Medio',
-    emoji: '🐠',
-    subtitle: 'Tablas 1-6 · 🚤 Disparo',
-    mode: 'shoot',
-    tables: [0, 1, 2, 3, 4, 5, 6],
-    problemCount: 20,
-    timeLimit: null,
-    shuffleOrder: false,
-    twoDigitChance: 0,
-    color: '#4FB3D9'
-  },
-  {
-    id: 2,
-    name: 'Avanzado',
-    emoji: '🦈',
-    subtitle: 'Tablas 1-10 · 📦 Cajas',
-    mode: 'crate',
-    tables: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-    problemCount: 20,
-    timeLimit: null,
-    shuffleOrder: true,
-    twoDigitChance: 0,
-    color: '#FF9A4D'
-  },
-  {
-    id: 3,
-    name: 'Maestro',
-    emoji: '🐋',
-    subtitle: 'Tablas 1-10 · 🌊 Mezcla + tiempo',
-    mode: 'mixed',
-    tables: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-    problemCount: 20,
-    timeLimit: 240, // 4 minutos para todo el nivel
-    shuffleOrder: true,
-    twoDigitChance: 0.18, // probabilidad de usar 11 o 12 como factor
-    color: '#F14C4C'
-  }
-];
-
-const MIXED_MODES = ['wheel', 'shoot', 'crate'];
-const ZERO_RULE_CHANCE = 0.14; // probabilidad de forzar un problema "x0"
-const TOTAL_LIVES = 3;
-const FISH_EMOJIS = ['🐟', '🐠', '🐡', '🦐', '🦑', '🐙'];
-const WHEEL_COLORS = ['#7ECBE8', '#4ECDC4', '#FFD93D', '#FFB570', '#FF6B6B', '#B39DDB', '#6FE0C0', '#F7A6C4'];
-
-/* -------------------------------------------------------------
-   2. ESTADO DEL JUEGO
-   ------------------------------------------------------------- */
-const state = {
-  levelIndex: 0,
-  problemIndex: 0,
-  correctCount: 0,
-  wrongCount: 0,
-  lives: TOTAL_LIVES,
-  currentProblem: null,
-  currentMode: 'wheel',
-  startTime: null,
-  elapsedSeconds: 0,
-  timerInterval: null,
-  timeRemaining: null,
-  wheelRotation: 0,
-  spinning: false,
-  answering: false, // evita doble click mientras se procesa una respuesta
-  caughtItems: [],  // emojis capturados, usados para pintar el "pond" en cada pantalla
-  levelActive: false // false cuando el jugador está en el menú (evita que timeouts pendientes reingresen al juego)
-};
-
-/* -------------------------------------------------------------
-   3. PERSISTENCIA (localStorage)
-   ------------------------------------------------------------- */
-const STORAGE_KEY = 'pescaDeNumeros_progreso';
-
-function loadProgress() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { unlocked: [0], stars: {} };
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed.unlocked)) parsed.unlocked = [0];
-    if (typeof parsed.stars !== 'object' || parsed.stars === null) parsed.stars = {};
-    return parsed;
-  } catch (e) {
-    return { unlocked: [0], stars: {} };
-  }
+  --font-display: 'Baloo 2', system-ui, sans-serif;
+  --font-body: 'Nunito', system-ui, sans-serif;
 }
 
-function saveProgress(progress) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
-  } catch (e) {
-    // Si localStorage no está disponible (modo privado, etc.) el juego sigue funcionando
-    console.warn('No se pudo guardar el progreso:', e);
-  }
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
 }
 
-function unlockLevel(levelIndex, starsEarned) {
-  const progress = loadProgress();
-  if (!progress.unlocked.includes(levelIndex)) progress.unlocked.push(levelIndex);
-  const nextLevel = levelIndex + 1;
-  if (nextLevel < LEVELS.length && !progress.unlocked.includes(nextLevel)) {
-    progress.unlocked.push(nextLevel);
-  }
-  const prevStars = progress.stars[levelIndex] || 0;
-  progress.stars[levelIndex] = Math.max(prevStars, starsEarned);
-  saveProgress(progress);
-  return progress;
+body {
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: linear-gradient(180deg, #BEE7F5 0%, #8FD3E8 45%, #6FC3DE 100%);
+  overflow-x: hidden;
+  position: relative;
 }
 
-/* -------------------------------------------------------------
-   4. SONIDOS (Web Audio API — sin archivos externos)
-   ------------------------------------------------------------- */
-const AudioFX = (() => {
-  let ctx = null;
-  function getCtx() {
-    if (!ctx) {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (AC) ctx = new AC();
-    }
-    return ctx;
-  }
-
-  function tone(freq, duration, type = 'sine', delay = 0, gainValue = 0.15) {
-    const audioCtx = getCtx();
-    if (!audioCtx) return;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = type;
-    osc.frequency.value = freq;
-    gain.gain.value = gainValue;
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    const startAt = audioCtx.currentTime + delay;
-    osc.start(startAt);
-    gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
-    osc.stop(startAt + duration + 0.02);
-  }
-
-  return {
-    correct() { tone(660, 0.12, 'triangle', 0); tone(880, 0.16, 'triangle', 0.1); },
-    wrong() { tone(180, 0.25, 'sawtooth', 0, 0.12); },
-    spin() { tone(440, 0.08, 'square', 0, 0.05); },
-    shoot() { tone(900, 0.06, 'square', 0, 0.05); tone(300, 0.1, 'square', 0.05, 0.05); },
-    crateBreak() { tone(220, 0.08, 'square', 0, 0.1); tone(140, 0.12, 'square', 0.06, 0.1); },
-    win() {
-      [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.18, 'triangle', i * 0.12));
-    },
-    click() { tone(520, 0.06, 'square', 0, 0.06); }
-  };
-})();
-
-/* -------------------------------------------------------------
-   5. UTILIDADES
-   ------------------------------------------------------------- */
-function $(selector, root) { return (root || document).querySelector(selector); }
-function $all(selector, root) { return Array.from((root || document).querySelectorAll(selector)); }
-function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
-function pickRandom(arr) { return arr[randInt(0, arr.length - 1)]; }
-
-function showScreen(id) {
-  $all('.screen').forEach(s => s.classList.remove('active'));
-  $(`#${id}`).classList.add('active');
+h1, h2, h3, .btn, .hud-item, .problem-text, .stat-value {
+  font-family: var(--font-display);
 }
 
-/* -------------------------------------------------------------
-   6. GENERACIÓN DE PROBLEMAS
-   ------------------------------------------------------------- */
-function generateProblem(level, forcedA) {
-  let a = forcedA;
-  let b = randInt(0, 10);
-
-  // Regla especial del 0: a veces forzamos explícitamente un factor 0
-  // (si "a" ya es 0, la regla se cubre de forma natural)
-  if (a !== 0 && Math.random() < ZERO_RULE_CHANCE) {
-    b = 0;
-  }
-
-  // Nivel Maestro: a veces usa un factor de dos dígitos simple (11 o 12)
-  if (level.twoDigitChance && Math.random() < level.twoDigitChance) {
-    a = pickRandom([11, 12]);
-    b = randInt(1, 9);
-  }
-
-  let displayA = a;
-  let displayB = b;
-
-  // "Problemas en desorden": a veces invertimos el orden visual (a×b vs b×a)
-  if (level.shuffleOrder && Math.random() < 0.5) {
-    displayA = b;
-    displayB = a;
-  }
-
-  const answer = a * b;
-
-  return {
-    a, b, answer,
-    text: `${displayA} × ${displayB} = ?`,
-    isZeroRule: (a === 0 || b === 0)
-  };
+/* =========================================================
+   FONDO OCEÁNICO DECORATIVO
+   ========================================================= */
+.ocean-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
 }
 
-function generateChoices(problem) {
-  const correct = problem.answer;
-  const choices = new Set([correct]);
+.wave {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 22vh;
+  min-height: 140px;
+}
+.wave path { fill: rgba(255,255,255,0.35); }
+.wave-front path { fill: rgba(255,255,255,0.5); }
+.wave-back { animation: wave-drift 12s ease-in-out infinite; opacity: .7; }
+.wave-front { animation: wave-drift 8s ease-in-out infinite reverse; }
 
-  const candidateGenerators = [
-    () => correct + pickRandom([1, 2, 3, -1, -2, -3]),
-    () => problem.a * (problem.b + pickRandom([1, -1, 2, -2])),
-    () => (problem.a + pickRandom([1, -1])) * problem.b,
-    () => problem.a + problem.b,           // error común: suma en vez de producto
-    () => correct + pickRandom([10, -10]),
-    () => correct === 0 ? pickRandom([1, 2, 3]) : 0 // evita repetir "0" si ya es la respuesta
-  ];
-
-  let safety = 0;
-  while (choices.size < 4 && safety < 50) {
-    safety++;
-    const gen = pickRandom(candidateGenerators);
-    const value = gen();
-    if (Number.isFinite(value) && value >= 0 && value <= 144) {
-      choices.add(value);
-    }
-  }
-
-  // Relleno de seguridad por si aún faltan opciones
-  while (choices.size < 4) {
-    choices.add(randInt(0, Math.max(20, correct + 10)));
-  }
-
-  return shuffleArray(Array.from(choices));
+@keyframes wave-drift {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-3%); }
 }
 
-function shuffleArray(arr) {
-  const copy = arr.slice();
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = randInt(0, i);
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
+.bubble {
+  position: absolute;
+  bottom: -40px;
+  font-size: 1.4rem;
+  opacity: 0.55;
+  animation: rise 9s linear infinite;
+}
+.b1 { left: 12%; animation-delay: 0s; }
+.b2 { left: 55%; animation-delay: 3s; font-size: 1rem; }
+.b3 { left: 80%; animation-delay: 6s; font-size: 1.8rem; }
+
+@keyframes rise {
+  0%   { transform: translateY(0) translateX(0); opacity: 0; }
+  10%  { opacity: 0.6; }
+  100% { transform: translateY(-110vh) translateX(20px); opacity: 0; }
 }
 
-/* -------------------------------------------------------------
-   7. FLUJO GENERAL DE NIVEL Y RONDAS
-   ------------------------------------------------------------- */
-function startLevel(levelIndex) {
-  state.levelIndex = levelIndex;
-  state.problemIndex = 0;
-  state.correctCount = 0;
-  state.wrongCount = 0;
-  state.lives = TOTAL_LIVES;
-  state.startTime = Date.now();
-  state.elapsedSeconds = 0;
-  state.answering = false;
-  state.caughtItems = [];
-  state.levelActive = true;
-
-  const level = LEVELS[levelIndex];
-  renderPond();
-  updateHUD();
-
-  if (level.timeLimit) {
-    state.timeRemaining = level.timeLimit;
-    startCountdown();
-  } else {
-    stopCountdown();
-    $all('.js-hud-timer').forEach(el => { el.hidden = true; });
-  }
-
-  beginRound();
+@media (prefers-reduced-motion: reduce) {
+  .wave-back, .wave-front, .bubble { animation: none !important; }
 }
 
-// Decide qué mecánica mostrar para el problema actual y prepara la pantalla correspondiente
-function beginRound() {
-  const level = LEVELS[state.levelIndex];
-  state.answering = false;
-  state.currentMode = level.mode === 'mixed' ? pickRandom(MIXED_MODES) : level.mode;
-
-  if (state.currentMode === 'wheel') {
-    buildWheel(level);
-    showScreen('screen-wheel');
-  } else {
-    const forcedTable = pickRandom(level.tables);
-    state.currentProblem = generateProblem(level, forcedTable);
-    if (state.currentMode === 'shoot') {
-      renderShootScreen();
-      showScreen('screen-shoot');
-    } else {
-      renderCrateScreen();
-      showScreen('screen-crate');
-    }
-  }
-  updateHUD();
+/* =========================================================
+   LAYOUT GENERAL
+   ========================================================= */
+#app {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px 80px;
 }
 
-// Bookkeeping compartido tras cada respuesta (correcta o incorrecta)
-function finishAnswer(isCorrect) {
-  if (isCorrect) {
-    state.correctCount++;
-    AudioFX.correct();
-    state.caughtItems.push(pickRandom(FISH_EMOJIS));
-    renderPond();
-  } else {
-    state.wrongCount++;
-    state.lives--;
-  }
-  updateHUD();
-
-  const delay = isCorrect ? 950 : 1500;
-  setTimeout(() => {
-    if (!state.levelActive) return; // el jugador salió al menú antes de que terminara el retraso
-    if (state.lives <= 0) {
-      endLevelGameOver();
-      return;
-    }
-    state.problemIndex++;
-    if (state.problemIndex >= LEVELS[state.levelIndex].problemCount) {
-      endLevelVictory();
-    } else {
-      beginRound();
-    }
-  }, delay);
+.screen {
+  display: none;
+  width: 100%;
+  max-width: 640px;
+}
+.screen.active {
+  display: block;
+  animation: screen-in .35s ease both;
 }
 
-/* -------------------------------------------------------------
-   8. NIVEL 1 — RULETA
-   ------------------------------------------------------------- */
-function buildWheel(level) {
-  const svg = $('#wheel');
-  svg.innerHTML = '';
-  const tables = level.tables;
-  const n = tables.length;
-  const cx = 150, cy = 150, r = 148;
-  const anglePer = 360 / n;
-
-  tables.forEach((tableValue, i) => {
-    const startAngle = i * anglePer;
-    const endAngle = startAngle + anglePer;
-    const path = describeSlice(cx, cy, r, startAngle, endAngle);
-    const slice = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    slice.setAttribute('d', path);
-    slice.setAttribute('fill', WHEEL_COLORS[i % WHEEL_COLORS.length]);
-    slice.setAttribute('stroke', '#FFFDF6');
-    slice.setAttribute('stroke-width', '2');
-    svg.appendChild(slice);
-
-    const midAngle = startAngle + anglePer / 2;
-    const labelR = r * 0.68;
-    const pos = polarToCartesian(cx, cy, labelR, midAngle);
-    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    text.setAttribute('x', pos.x);
-    text.setAttribute('y', pos.y);
-    text.setAttribute('text-anchor', 'middle');
-    text.setAttribute('dominant-baseline', 'middle');
-    text.setAttribute('font-family', 'Baloo 2, sans-serif');
-    text.setAttribute('font-weight', '700');
-    text.setAttribute('font-size', n > 10 ? '15' : '20');
-    text.setAttribute('fill', '#274156');
-    text.textContent = `×${tableValue}`;
-    svg.appendChild(text);
-  });
-
-  state.wheelTables = tables;
-  state.wheelAnglePer = anglePer;
-  state.wheelRotation = 0;
-  svg.style.transform = 'rotate(0deg)';
-
-  const spinBtn = $('#btn-spin');
-  spinBtn.disabled = false;
+@keyframes screen-in {
+  from { opacity: 0; transform: translateY(14px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-function polarToCartesian(cx, cy, radius, angleDeg) {
-  const angleRad = ((angleDeg - 90) * Math.PI) / 180;
-  return { x: cx + radius * Math.cos(angleRad), y: cy + radius * Math.sin(angleRad) };
+.card {
+  position: relative;
+  background: var(--cream);
+  border-radius: var(--radius-lg);
+  padding: 28px 24px 32px;
+  box-shadow: 0 14px 0 rgba(39,65,86,0.12), 0 20px 40px rgba(39,65,86,0.18);
+  border: 4px solid var(--white);
+  text-align: center;
 }
 
-function describeSlice(cx, cy, r, startAngle, endAngle) {
-  const start = polarToCartesian(cx, cy, r, endAngle);
-  const end = polarToCartesian(cx, cy, r, startAngle);
-  const largeArc = endAngle - startAngle <= 180 ? 0 : 1;
-  return [
-    `M ${cx} ${cy}`,
-    `L ${start.x} ${start.y}`,
-    `A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y}`,
-    'Z'
-  ].join(' ');
+.site-footer {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: .85rem;
+  padding-bottom: 18px;
+  opacity: 0.8;
 }
 
-function spinWheel() {
-  if (state.spinning) return;
-  state.spinning = true;
-  $('#btn-spin').disabled = true;
-  AudioFX.spin();
+/* Botón "Menú" presente en las pantallas de juego */
+.btn-back {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 5;
+  background: var(--white);
+  border: none;
+  border-radius: 100px;
+  padding: 7px 14px;
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: .82rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 3px 0 rgba(39,65,86,0.15);
+}
+.btn-back:active { transform: translateY(2px); box-shadow: none; }
 
-  const tables = state.wheelTables;
-  const anglePer = state.wheelAnglePer;
-  const targetIndex = randInt(0, tables.length - 1);
+/* =========================================================
+   PANTALLA DE INICIO
+   ========================================================= */
+.game-title {
+  font-size: clamp(1.8rem, 6vw, 2.6rem);
+  font-weight: 800;
+  color: var(--sky-deep);
+  margin: 4px 0 6px;
+  text-shadow: 2px 2px 0 rgba(255,255,255,0.6);
+}
+.title-fish { display: inline-block; animation: bob 2.4s ease-in-out infinite; }
+@keyframes bob { 0%,100%{ transform: translateY(0) rotate(0deg);} 50%{ transform: translateY(-6px) rotate(-6deg);} }
 
-  const targetSliceCenter = targetIndex * anglePer + anglePer / 2;
-  const extraSpins = 360 * randInt(4, 6);
-  const finalRotation = state.wheelRotation + extraSpins + (360 - targetSliceCenter) - (state.wheelRotation % 360);
-
-  const svg = $('#wheel');
-  svg.style.transform = `rotate(${finalRotation}deg)`;
-  state.wheelRotation = finalRotation;
-
-  setTimeout(() => {
-    state.spinning = false;
-    if (!state.levelActive) return; // el jugador salió al menú mientras giraba la ruleta
-    const chosenTable = tables[targetIndex];
-    startQuizProblem(chosenTable);
-  }, 3300);
+.game-subtitle {
+  font-size: 1rem;
+  color: var(--ink-soft);
+  margin: 0 0 22px;
+  font-weight: 700;
 }
 
-function startQuizProblem(forcedTable) {
-  const level = LEVELS[state.levelIndex];
-  state.currentProblem = generateProblem(level, forcedTable);
-  state.answering = false;
-  renderQuizScreen();
-  showScreen('screen-quiz');
+.section-label {
+  font-size: 1.05rem;
+  color: var(--ink);
+  margin: 0 0 14px;
+  font-weight: 800;
 }
 
-function renderQuizScreen() {
-  const problem = state.currentProblem;
-  $('#problem-text').textContent = problem.text;
-  $('#feedback').textContent = '';
-  $('#feedback').className = 'feedback';
+.level-select { margin-bottom: 22px; }
 
-  const choices = generateChoices(problem);
-  const grid = $('#answers-grid');
-  grid.innerHTML = '';
-
-  choices.forEach(value => {
-    const btn = document.createElement('button');
-    btn.className = 'answer-btn';
-    btn.textContent = value;
-    btn.setAttribute('aria-label', `Respuesta ${value}`);
-    btn.addEventListener('click', () => handleQuizAnswer(value, btn));
-    grid.appendChild(btn);
-  });
-
-  updateHUD();
+.level-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
-function handleQuizAnswer(selectedValue, btnEl) {
-  if (state.answering) return;
-  state.answering = true;
+.level-btn {
+  position: relative;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 16px 10px 14px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  color: var(--white);
+  box-shadow: var(--shadow);
+  transition: transform .12s ease, box-shadow .12s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.level-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(39,65,86,0.15); }
+.level-btn .level-emoji { font-size: 1.6rem; }
+.level-btn .level-sub { font-size: .72rem; font-weight: 600; opacity: .9; }
 
-  const problem = state.currentProblem;
-  const isCorrect = selectedValue === problem.answer;
-  const allButtons = $all('#answers-grid .answer-btn');
-  allButtons.forEach(b => (b.disabled = true));
+.level-btn[data-level="0"] { background: linear-gradient(180deg, var(--aqua) 0%, var(--aqua-deep) 100%); }
+.level-btn[data-level="1"] { background: linear-gradient(180deg, var(--sky) 0%, var(--sky-deep) 100%); }
+.level-btn[data-level="2"] { background: linear-gradient(180deg, var(--orange) 0%, var(--orange-deep) 100%); }
+.level-btn[data-level="3"] { background: linear-gradient(180deg, var(--coral) 0%, var(--coral-deep) 100%); }
 
-  const feedback = $('#feedback');
-  if (isCorrect) {
-    btnEl.classList.add('correct');
-    feedback.textContent = pickRandom(['¡Genial! 🎉', '¡Excelente pesca! 🐟', '¡Correcto! 🌟', '¡Así se hace! 👏']);
-    feedback.classList.add('feedback-good');
-  } else {
-    btnEl.classList.add('wrong');
-    feedback.textContent = `Casi... la respuesta correcta es ${problem.answer}`;
-    feedback.classList.add('feedback-bad');
-    allButtons.forEach(b => { if (Number(b.textContent) === problem.answer) b.classList.add('correct'); });
-  }
+.level-btn.selected { outline: 4px solid var(--sun); outline-offset: 2px; transform: scale(1.04); }
+.level-btn.locked { background: #C9D3DA; cursor: not-allowed; box-shadow: none; opacity: .8; }
+.level-btn.locked:active { transform: none; }
+.level-btn .lock-icon { font-size: 1.3rem; }
 
-  finishAnswer(isCorrect);
+.level-stars { font-size: .8rem; letter-spacing: 1px; }
+
+/* Botones generales */
+.btn {
+  font-family: var(--font-display);
+  font-weight: 700;
+  border: none;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+  color: var(--white);
+}
+.btn:active { transform: translateY(4px); }
+
+.btn-huge {
+  width: 100%;
+  padding: 16px 20px;
+  font-size: 1.25rem;
+  background: linear-gradient(180deg, var(--sun) 0%, var(--sun-deep) 100%);
+  color: var(--ink);
+  box-shadow: 0 6px 0 #C98F00;
+}
+.btn-huge:active { box-shadow: 0 2px 0 #C98F00; }
+
+.btn-primary {
+  background: linear-gradient(180deg, var(--sky) 0%, var(--sky-deep) 100%);
+  box-shadow: 0 6px 0 #2E85A8;
+  padding: 14px 22px;
+  font-size: 1.05rem;
+}
+.btn-primary:active { box-shadow: 0 2px 0 #2E85A8; }
+
+.btn-secondary {
+  background: linear-gradient(180deg, var(--aqua) 0%, var(--aqua-deep) 100%);
+  box-shadow: 0 6px 0 #1F8E86;
+  padding: 14px 22px;
+  font-size: 1.05rem;
+}
+.btn-secondary:active { box-shadow: 0 2px 0 #1F8E86; }
+
+.btn-link, .btn-link-btn {
+  background: none;
+  border: none;
+  color: var(--sky-deep);
+  font-family: var(--font-body);
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: .92rem;
+  padding: 6px 10px;
+}
+.btn-link-muted { color: #9FB0BD; }
+
+.start-footer {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  flex-wrap: wrap;
 }
 
-/* -------------------------------------------------------------
-   9. NIVEL 2 — DISPARO SUBMARINO
-   ------------------------------------------------------------- */
-function renderShootScreen() {
-  const problem = state.currentProblem;
-  $('#shoot-problem-text').textContent = problem.text;
-  const feedback = $('#shoot-feedback');
-  feedback.textContent = '';
-  feedback.className = 'feedback';
+/* =========================================================
+   PANTALLA DE AYUDA
+   ========================================================= */
+.section-title {
+  color: var(--sky-deep);
+  font-size: 1.5rem;
+  margin-top: 4px;
+}
+.help-list {
+  list-style: none;
+  padding: 0;
+  margin: 18px 0 24px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.help-list li {
+  background: #EAF7FB;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-weight: 700;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.help-icon { font-size: 1.4rem; flex-shrink: 0; }
 
-  const scene = $('#sea-scene');
-  // Limpiamos blancos anteriores (conservamos la nave)
-  $all('.target-mine, .torpedo, .explosion', scene).forEach(el => el.remove());
+/* =========================================================
+   HUD (encabezado del juego)
+   ========================================================= */
+.hud {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 30px 0 14px;
+}
+.hud-item {
+  background: #EAF7FB;
+  border-radius: 100px;
+  padding: 6px 14px;
+  font-weight: 700;
+  font-size: .95rem;
+  color: var(--ink);
+}
+.hud-lives { letter-spacing: 2px; }
+.hud-timer { background: #FFE9D6; color: var(--orange-deep); }
+.hud-timer.warning { background: #FFD6D6; color: var(--coral-deep); animation: pulse .8s infinite; }
 
-  const choices = generateChoices(problem);
-  // Distribuimos los blancos en distintas filas/columnas para que no se encimen
-  const positions = layoutTargets(choices.length);
+@keyframes pulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.08);} }
 
-  choices.forEach((value, i) => {
-    const target = document.createElement('button');
-    target.className = 'target-mine';
-    target.textContent = value;
-    target.style.left = `${positions[i].left}%`;
-    target.style.top = `${positions[i].top}%`;
-    target.style.animationDelay = `${(i * 0.3).toFixed(2)}s`;
-    target.setAttribute('aria-label', `Disparar a ${value}`);
-    target.addEventListener('click', () => handleShootAnswer(value, target));
-    scene.appendChild(target);
-  });
-
-  updateHUD();
+/* =========================================================
+   RULETA
+   ========================================================= */
+.wheel-title {
+  color: var(--sky-deep);
+  margin: 4px 0 18px;
+}
+.wheel-wrapper {
+  position: relative;
+  width: min(280px, 78vw);
+  aspect-ratio: 1/1;
+  margin: 0 auto 24px;
+}
+.wheel-pointer {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.8rem;
+  color: var(--coral-deep);
+  z-index: 3;
+  filter: drop-shadow(0 2px 1px rgba(0,0,0,0.2));
+}
+.wheel {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  box-shadow: 0 0 0 8px var(--white), 0 10px 24px rgba(39,65,86,0.3);
+  transition: transform 3.2s cubic-bezier(0.15, 0.85, 0.2, 1);
+}
+.wheel-hub {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 54px;
+  height: 54px;
+  background: var(--white);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.25);
+  z-index: 2;
 }
 
-function layoutTargets(count) {
-  // Genera posiciones (en %) repartidas en 2 filas, evitando el área de la nave
-  const cols = Math.ceil(count / 2);
-  const positions = [];
-  for (let i = 0; i < count; i++) {
-    const row = i % 2;
-    const col = Math.floor(i / 2);
-    const left = 15 + col * (70 / Math.max(cols - 1, 1)) + randInt(-4, 4);
-    const top = row === 0 ? 26 + randInt(-6, 6) : 52 + randInt(-6, 6);
-    positions.push({ left: Math.min(Math.max(left, 10), 90), top });
-  }
-  return shuffleArray(positions);
+/* =========================================================
+   ESTANQUE / BODEGA DE PROGRESO
+   ========================================================= */
+.pond {
+  background: linear-gradient(180deg, #C9EEF7 0%, #9FDCEE 100%);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  min-height: 46px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 4px;
+  margin-bottom: 16px;
+  border: 3px solid var(--white);
+}
+.pond .fish-caught {
+  font-size: 1.2rem;
+  animation: pop-in .35s ease;
+}
+@keyframes pop-in {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
 }
 
-function handleShootAnswer(selectedValue, targetEl) {
-  if (state.answering) return;
-  state.answering = true;
-
-  const problem = state.currentProblem;
-  const isCorrect = selectedValue === problem.answer;
-  const scene = $('#sea-scene');
-  const ship = $('.ship', scene);
-
-  $all('.target-mine', scene).forEach(t => { t.disabled = true; t.style.cursor = 'default'; });
-
-  AudioFX.shoot();
-  fireTorpedo(scene, ship, targetEl, () => {
-    const feedback = $('#shoot-feedback');
-    if (isCorrect) {
-      targetEl.classList.add('hit');
-      feedback.textContent = pickRandom(['¡Impacto directo! 🎯', '¡Blanco destruido! 💥', '¡Excelente puntería! 🚤']);
-      feedback.classList.add('feedback-good');
-    } else {
-      targetEl.classList.add('miss');
-      feedback.textContent = `¡Fallaste! La respuesta correcta era ${problem.answer}`;
-      feedback.classList.add('feedback-bad');
-      const correctTarget = $all('.target-mine', scene).find(t => Number(t.textContent) === problem.answer);
-      if (correctTarget) correctTarget.classList.add('hit');
-    }
-    finishAnswer(isCorrect);
-  });
+/* =========================================================
+   PREGUNTA / PROBLEMA (común a ruleta, disparo y cajas)
+   ========================================================= */
+.problem-box {
+  background: linear-gradient(180deg, var(--sky) 0%, var(--sky-deep) 100%);
+  border-radius: var(--radius-md);
+  padding: 22px 16px;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.problem-fish {
+  position: absolute;
+  font-size: 3rem;
+  opacity: 0.25;
+  top: -6px;
+  right: -6px;
+  transform: rotate(10deg);
+}
+.problem-text {
+  color: var(--white);
+  font-size: clamp(1.8rem, 8vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.12);
+  position: relative;
 }
 
-function fireTorpedo(scene, shipEl, targetEl, onDone) {
-  const sceneRect = scene.getBoundingClientRect();
-  const shipRect = shipEl.getBoundingClientRect();
-  const targetRect = targetEl.getBoundingClientRect();
-
-  const startX = shipRect.left + shipRect.width / 2 - sceneRect.left;
-  const startY = shipRect.top - sceneRect.top;
-  const endX = targetRect.left + targetRect.width / 2 - sceneRect.left;
-  const endY = targetRect.top + targetRect.height / 2 - sceneRect.top;
-
-  const torpedo = document.createElement('span');
-  torpedo.className = 'torpedo';
-  torpedo.textContent = '💨';
-  torpedo.style.left = `${startX}px`;
-  torpedo.style.top = `${startY}px`;
-  scene.appendChild(torpedo);
-
-  // Forzamos reflow para que la transición se aplique desde la posición inicial
-  // eslint-disable-next-line no-unused-expressions
-  torpedo.offsetHeight;
-
-  requestAnimationFrame(() => {
-    torpedo.style.left = `${endX}px`;
-    torpedo.style.top = `${endY}px`;
-  });
-
-  setTimeout(() => {
-    torpedo.remove();
-    const explosion = document.createElement('span');
-    explosion.className = 'explosion';
-    explosion.textContent = '💥';
-    explosion.style.left = `${endX}px`;
-    explosion.style.top = `${endY}px`;
-    scene.appendChild(explosion);
-    setTimeout(() => explosion.remove(), 500);
-    onDone();
-  }, 300);
+.mode-hint {
+  font-weight: 700;
+  color: var(--ink-soft);
+  font-size: .92rem;
+  margin: 0 0 12px;
 }
 
-/* -------------------------------------------------------------
-   10. NIVEL 3 — CAJAS DE CARGUERO
-   ------------------------------------------------------------- */
-function renderCrateScreen() {
-  const crateBox = $('#crate-box');
-  crateBox.className = 'crate';
-  crateBox.textContent = '📦';
-  crateBox.disabled = false;
-  $('#crate-hint').hidden = false;
-  $('#crate-scene').hidden = false;
-  $('#crate-question').hidden = true;
-  $('#crate-feedback').textContent = '';
-  $('#crate-feedback').className = 'feedback';
-
-  // Se vuelve a asignar el listener (clonamos para limpiar listeners previos)
-  const freshCrate = crateBox.cloneNode(true);
-  crateBox.parentNode.replaceChild(freshCrate, crateBox);
-  freshCrate.addEventListener('click', handleCrateOpen);
-
-  updateHUD();
+.answers-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
-function handleCrateOpen() {
-  const crateBox = $('#crate-box');
-  if (crateBox.disabled) return;
-  crateBox.disabled = true;
-  AudioFX.crateBreak();
-  crateBox.classList.add('breaking');
+.answer-btn {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  padding: 18px 8px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--white);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 0 5px 0 #D8E4EA, 0 6px 12px rgba(39,65,86,0.12);
+  transition: transform .12s ease, box-shadow .12s ease, background .15s ease, color .15s ease;
+}
+.answer-btn:active { transform: translateY(3px); }
+.answer-btn:disabled { cursor: default; }
 
-  setTimeout(() => {
-    crateBox.classList.remove('breaking');
-    crateBox.classList.add('broken');
-    $('#crate-hint').hidden = true;
-
-    setTimeout(() => {
-      $('#crate-scene').hidden = true;
-      revealCrateQuestion();
-    }, 250);
-  }, 400);
+.answer-btn.correct {
+  background: var(--success);
+  color: var(--white);
+  box-shadow: 0 5px 0 #2FA968;
+  animation: correct-pop .4s ease;
+}
+.answer-btn.wrong {
+  background: var(--coral);
+  color: var(--white);
+  box-shadow: 0 5px 0 var(--coral-deep);
+  animation: shake .4s ease;
+}
+@keyframes correct-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
 }
 
-function revealCrateQuestion() {
-  const problem = state.currentProblem;
-  $('#crate-problem-text').textContent = problem.text;
-  $('#crate-question').hidden = false;
+.feedback {
+  min-height: 34px;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--ink);
+}
+.feedback.feedback-good { color: #2FA968; }
+.feedback.feedback-bad { color: var(--coral-deep); }
 
-  const choices = generateChoices(problem);
-  const grid = $('#crate-answers-grid');
-  grid.innerHTML = '';
+/* =========================================================
+   NIVEL 2 — DISPARO SUBMARINO
+   ========================================================= */
+.shoot-problem { margin-bottom: 8px; }
 
-  choices.forEach(value => {
-    const btn = document.createElement('button');
-    btn.className = 'answer-btn';
-    btn.textContent = value;
-    btn.setAttribute('aria-label', `Respuesta ${value}`);
-    btn.addEventListener('click', () => handleCrateAnswer(value, btn));
-    grid.appendChild(btn);
-  });
+.sea-scene {
+  position: relative;
+  height: 260px;
+  background: linear-gradient(180deg, #6FC3DE 0%, #2E85A8 100%);
+  border-radius: var(--radius-md);
+  border: 3px solid var(--white);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.sea-scene::before {
+  /* Textura de burbujas/luz sutil en el agua */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.15), transparent 40%),
+              radial-gradient(circle at 80% 60%, rgba(255,255,255,0.1), transparent 45%);
+  pointer-events: none;
 }
 
-function handleCrateAnswer(selectedValue, btnEl) {
-  if (state.answering) return;
-  state.answering = true;
-
-  const problem = state.currentProblem;
-  const isCorrect = selectedValue === problem.answer;
-  const allButtons = $all('#crate-answers-grid .answer-btn');
-  allButtons.forEach(b => (b.disabled = true));
-
-  const feedback = $('#crate-feedback');
-  if (isCorrect) {
-    btnEl.classList.add('correct');
-    feedback.textContent = pickRandom(['¡Mercancía asegurada! 📦✅', '¡Buen hallazgo! 🌟', '¡Correcto! 👏']);
-    feedback.classList.add('feedback-good');
-  } else {
-    btnEl.classList.add('wrong');
-    feedback.textContent = `Casi... la respuesta correcta es ${problem.answer}`;
-    feedback.classList.add('feedback-bad');
-    allButtons.forEach(b => { if (Number(b.textContent) === problem.answer) b.classList.add('correct'); });
-  }
-
-  finishAnswer(isCorrect);
+.ship {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 2.6rem;
+  filter: drop-shadow(0 4px 3px rgba(0,0,0,0.25));
+  z-index: 2;
 }
 
-/* -------------------------------------------------------------
-   11. PROGRESO VISUAL COMPARTIDO (pond / bodega)
-   ------------------------------------------------------------- */
-function renderPond() {
-  const html = state.caughtItems.map(emoji => `<span class="fish-caught">${emoji}</span>`).join('');
-  $all('.js-pond').forEach(pond => { pond.innerHTML = html; });
+.target-mine {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  min-width: 52px;
+  height: 52px;
+  padding: 0 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #FFEFC2, var(--sun-deep) 75%);
+  border: 3px solid var(--white);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.25);
+  animation: target-drift 3.4s ease-in-out infinite;
+  z-index: 1;
+}
+.target-mine:nth-child(odd) { animation-direction: alternate; }
+.target-mine:nth-child(3n) { animation-duration: 2.6s; }
+.target-mine:nth-child(4n) { animation-duration: 4.1s; }
+
+@keyframes target-drift {
+  0%, 100% { margin-left: -14px; margin-top: -6px; }
+  50% { margin-left: 14px; margin-top: 6px; }
 }
 
-/* -------------------------------------------------------------
-   12. HUD (vidas, progreso, tiempo, nombre de nivel)
-   ------------------------------------------------------------- */
-function updateHUD() {
-  const level = LEVELS[state.levelIndex];
-  const heartsStr = '❤️'.repeat(Math.max(state.lives, 0)) + '🤍'.repeat(TOTAL_LIVES - Math.max(state.lives, 0));
-  const progressStr = `${Math.min(state.problemIndex + 1, level.problemCount)} / ${level.problemCount}`;
-  const levelLabel = `${level.emoji} ${level.name}`;
-
-  $all('.js-hud-lives').forEach(el => { el.textContent = heartsStr; });
-  $all('.js-hud-progress').forEach(el => { el.textContent = progressStr; });
-  $all('.js-hud-level-name').forEach(el => { el.textContent = levelLabel; });
+.target-mine.hit {
+  background: radial-gradient(circle, var(--success), #2FA968);
+  animation: none;
+  transform: translate(-50%, -50%) scale(1.25);
+  opacity: 0;
+  transition: transform .35s ease, opacity .35s ease;
+}
+.target-mine.miss {
+  background: radial-gradient(circle, var(--coral), var(--coral-deep));
+  animation: none;
 }
 
-function startCountdown() {
-  stopCountdown();
-  updateTimerDisplay();
-  $all('.js-hud-timer').forEach(el => { el.hidden = false; });
-
-  state.timerInterval = setInterval(() => {
-    state.timeRemaining--;
-    updateTimerDisplay();
-    if (state.timeRemaining <= 0) {
-      stopCountdown();
-      endLevelGameOver(true);
-    }
-  }, 1000);
+.torpedo {
+  position: absolute;
+  font-size: 1.4rem;
+  z-index: 3;
+  pointer-events: none;
+  transition: left .28s linear, top .28s linear;
+  transform: translate(-50%, -50%);
 }
 
-function stopCountdown() {
-  if (state.timerInterval) {
-    clearInterval(state.timerInterval);
-    state.timerInterval = null;
-  }
+.explosion {
+  position: absolute;
+  font-size: 1.8rem;
+  z-index: 4;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.4);
+  opacity: 1;
+  animation: explode .45s ease forwards;
+}
+@keyframes explode {
+  0% { transform: translate(-50%, -50%) scale(0.4); opacity: 1; }
+  60% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
 }
 
-function updateTimerDisplay() {
-  const t = Math.max(state.timeRemaining, 0);
-  const mins = Math.floor(t / 60);
-  const secs = (t % 60).toString().padStart(2, '0');
-  const text = `⏱️ ${mins}:${secs}`;
-  $all('.js-hud-timer').forEach(el => {
-    el.textContent = text;
-    el.classList.toggle('warning', t <= 20);
-  });
+/* =========================================================
+   NIVEL 3 — CAJAS DE CARGUERO
+   ========================================================= */
+.crate-scene {
+  position: relative;
+  background: linear-gradient(180deg, #E9D3A8 0%, var(--wood) 100%);
+  border-radius: var(--radius-md);
+  border: 3px solid var(--white);
+  padding: 26px 16px 18px;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+.crate-deco {
+  position: absolute;
+  font-size: 2rem;
+  opacity: 0.55;
+}
+.crate-deco-1 { bottom: 10px; left: 8%; transform: rotate(-8deg); }
+.crate-deco-2 { bottom: 10px; right: 8%; transform: rotate(10deg); }
+
+.crate {
+  display: block;
+  margin: 0 auto 10px;
+  font-size: 4.4rem;
+  line-height: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+  filter: drop-shadow(0 6px 4px rgba(0,0,0,0.25));
+  animation: crate-bob 2.6s ease-in-out infinite;
+  transition: transform .15s ease;
+}
+.crate:active { transform: scale(0.92); }
+.crate.breaking {
+  animation: crate-shake .4s ease;
+}
+.crate.broken {
+  animation: crate-pop-out .35s ease forwards;
 }
 
-/* -------------------------------------------------------------
-   13. FIN DE NIVEL: VICTORIA / GAME OVER
-   ------------------------------------------------------------- */
-function calculateStars() {
-  const total = state.correctCount + state.wrongCount;
-  const accuracy = total > 0 ? state.correctCount / total : 0;
-  if (accuracy >= 0.9 && state.wrongCount <= 1) return 3;
-  if (accuracy >= 0.7) return 2;
-  return 1;
+@keyframes crate-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes crate-shake {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  20% { transform: translateX(-6px) rotate(-4deg); }
+  40% { transform: translateX(6px) rotate(4deg); }
+  60% { transform: translateX(-5px) rotate(-3deg); }
+  80% { transform: translateX(5px) rotate(3deg); }
+}
+@keyframes crate-pop-out {
+  to { transform: scale(0); opacity: 0; }
 }
 
-function endLevelVictory() {
-  stopCountdown();
-  state.elapsedSeconds = Math.round((Date.now() - state.startTime) / 1000);
-
-  const stars = calculateStars();
-  unlockLevel(state.levelIndex, stars);
-
-  $('#stat-correct').textContent = state.correctCount;
-  $('#stat-wrong').textContent = state.wrongCount;
-  $('#stat-time').textContent = `${state.elapsedSeconds}s`;
-
-  $all('#stars-row .star').forEach((starEl, i) => {
-    starEl.classList.toggle('earned', i < stars);
-  });
-
-  const messages = {
-    3: ['¡Eres un pescador experto de las tablas! 🏆', '¡Increíble! Dominas esta tabla al 100% 🌟'],
-    2: ['¡Muy buen trabajo! Sigue practicando para 3 estrellas ⭐', '¡Vas muy bien! Un poco más de práctica y serás experto 🎣'],
-    1: ['¡Completaste el nivel! Sigue practicando 💪', '¡Buen esfuerzo! Cada intento te hace mejor 🐠']
-  };
-  $('#victory-message').textContent = pickRandom(messages[stars]);
-
-  const nextBtn = $('#btn-next-level');
-  const isLastLevel = state.levelIndex >= LEVELS.length - 1;
-  nextBtn.hidden = isLastLevel;
-  nextBtn.style.display = isLastLevel ? 'none' : '';
-
-  launchConfetti();
-  AudioFX.win();
-  showScreen('screen-victory');
-  renderLevelGrid();
+.crate-question {
+  animation: screen-in .3s ease both;
 }
 
-function endLevelGameOver(byTimeout) {
-  stopCountdown();
-  $('#stat-correct-go').textContent = state.correctCount;
-  $('#stat-wrong-go').textContent = state.wrongCount;
-  $('#gameover-message').textContent = byTimeout
-    ? '¡Se acabó el tiempo! Los pescadores expertos también necesitan práctica. Inténtalo de nuevo. ⏱️'
-    : 'No te preocupes, ¡cada pescador experto también falla! Inténtalo de nuevo. 🌊';
-  showScreen('screen-gameover');
+/* =========================================================
+   VICTORIA
+   ========================================================= */
+.victory-title {
+  color: var(--sun-deep);
+  font-size: 1.7rem;
+  margin: 4px 0 10px;
+}
+.stars-row {
+  font-size: 2.6rem;
+  margin-bottom: 10px;
+  letter-spacing: 6px;
+}
+.stars-row .star { opacity: .25; display: inline-block; transition: opacity .2s ease, transform .2s ease; }
+.stars-row .star.earned {
+  opacity: 1;
+  animation: star-pop .5s ease both;
+}
+@keyframes star-pop {
+  0% { transform: scale(0) rotate(-30deg); }
+  60% { transform: scale(1.3) rotate(10deg); }
+  100% { transform: scale(1) rotate(0deg); }
 }
 
-function launchConfetti() {
-  const container = $('#confetti');
-  container.innerHTML = '';
-  const pieces = ['🎉', '⭐', '🐟', '🎊', '💙', '🟡'];
-  for (let i = 0; i < 26; i++) {
-    const span = document.createElement('span');
-    span.textContent = pickRandom(pieces);
-    span.style.left = `${randInt(0, 100)}%`;
-    span.style.animationDelay = `${(Math.random() * 0.6).toFixed(2)}s`;
-    span.style.fontSize = `${randInt(14, 26)}px`;
-    container.appendChild(span);
-  }
+.victory-message {
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin-bottom: 18px;
 }
 
-/* -------------------------------------------------------------
-   14. MENÚ PRINCIPAL: SELECCIÓN DE NIVEL
-   ------------------------------------------------------------- */
-let selectedLevelIndex = 0;
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 22px;
+}
+.gameover-card .stats-grid { grid-template-columns: repeat(2, 1fr); }
 
-function renderLevelGrid() {
-  const progress = loadProgress();
-  const grid = $('#level-grid');
-  grid.innerHTML = '';
+.stat {
+  background: #EAF7FB;
+  border-radius: var(--radius-sm);
+  padding: 12px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stat-value { font-size: 1.4rem; font-weight: 800; color: var(--sky-deep); }
+.stat-label { font-size: .78rem; font-weight: 700; color: var(--ink-soft); }
 
-  LEVELS.forEach((level, i) => {
-    const isUnlocked = progress.unlocked.includes(i);
-    const stars = progress.stars[i] || 0;
-
-    const btn = document.createElement('button');
-    btn.className = 'level-btn' + (isUnlocked ? '' : ' locked') + (i === selectedLevelIndex ? ' selected' : '');
-    btn.dataset.level = i;
-    btn.disabled = !isUnlocked;
-
-    if (isUnlocked) {
-      btn.innerHTML = `
-        <span class="level-emoji">${level.emoji}</span>
-        <span>${level.name}</span>
-        <span class="level-sub">${level.subtitle}</span>
-        <span class="level-stars">${'⭐'.repeat(stars)}${'☆'.repeat(3 - stars)}</span>
-      `;
-      btn.addEventListener('click', () => {
-        selectedLevelIndex = i;
-        AudioFX.click();
-        renderLevelGrid();
-      });
-    } else {
-      btn.innerHTML = `
-        <span class="lock-icon">🔒</span>
-        <span>${level.name}</span>
-        <span class="level-sub">Completa el nivel anterior</span>
-      `;
-    }
-    grid.appendChild(btn);
-  });
+.victory-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-/* -------------------------------------------------------------
-   15. EVENTOS DE INTERFAZ
-   ------------------------------------------------------------- */
-function initEvents() {
-  $('#btn-play').addEventListener('click', () => {
-    AudioFX.click();
-    startLevel(selectedLevelIndex);
-  });
-
-  $('#btn-spin').addEventListener('click', spinWheel);
-
-  $('#btn-how-to-play').addEventListener('click', () => showScreen('screen-help'));
-  $('#btn-help-back').addEventListener('click', () => showScreen('screen-start'));
-
-  $('#btn-retry').addEventListener('click', () => startLevel(state.levelIndex));
-  $('#btn-retry-go').addEventListener('click', () => startLevel(state.levelIndex));
-
-  $('#btn-next-level').addEventListener('click', () => {
-    const next = Math.min(state.levelIndex + 1, LEVELS.length - 1);
-    startLevel(next);
-  });
-
-  $('#btn-menu-from-victory').addEventListener('click', backToMenu);
-  $('#btn-menu-from-gameover').addEventListener('click', backToMenu);
-
-  // Botón "⬅️ Menú" presente en las 4 pantallas de juego (ruleta, pregunta, disparo, cajas)
-  $all('.js-btn-back').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const confirmExit = confirm('¿Seguro que quieres volver al menú? Perderás el progreso de este nivel.');
-      if (confirmExit) backToMenu();
-    });
-  });
-
-  $('#btn-reset-progress').addEventListener('click', () => {
-    if (confirm('¿Seguro que quieres borrar todo tu progreso guardado?')) {
-      localStorage.removeItem(STORAGE_KEY);
-      selectedLevelIndex = 0;
-      renderLevelGrid();
-    }
-  });
+.confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+.confetti span {
+  position: absolute;
+  top: -20px;
+  font-size: 1.2rem;
+  animation: confetti-fall 2.6s ease-in forwards;
+}
+@keyframes confetti-fall {
+  to { transform: translateY(420px) rotate(320deg); opacity: 0; }
 }
 
-function backToMenu() {
-  stopCountdown();
-  state.spinning = false;
-  state.answering = true; // evita nuevos clics mientras se desmonta la pantalla de juego
-  state.levelActive = false; // invalida cualquier setTimeout pendiente (spin, torpedo, feedback...)
-  renderLevelGrid();
-  showScreen('screen-start');
+/* =========================================================
+   GAME OVER
+   ========================================================= */
+.gameover-title {
+  color: var(--coral-deep);
+  font-size: 1.5rem;
+}
+.gameover-message {
+  color: var(--ink-soft);
+  font-weight: 700;
+  margin-bottom: 18px;
 }
 
-/* -------------------------------------------------------------
-   16. INICIALIZACIÓN
-   ------------------------------------------------------------- */
-function init() {
-  renderLevelGrid();
-  initEvents();
-  showScreen('screen-start');
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+@media (min-width: 480px) {
+  .answers-grid { gap: 14px; }
+  .answer-btn { font-size: 1.6rem; }
 }
 
-document.addEventListener('DOMContentLoaded', init);
+@media (min-width: 720px) {
+  .card { padding: 40px 44px 44px; }
+  .level-grid { grid-template-columns: repeat(4, 1fr); }
+  .victory-actions { flex-direction: row; justify-content: center; }
+  .victory-actions .btn { flex: 1; }
+  .sea-scene { height: 300px; }
+}
+
+@media (max-width: 360px) {
+  .card { padding: 20px 14px 26px; }
+  .problem-text { font-size: 1.6rem; }
+  .sea-scene { height: 220px; }
+  .target-mine { min-width: 44px; height: 44px; font-size: .95rem; }
+}
+
+/* Accesibilidad: foco visible */
+button:focus-visible {
+  outline: 3px solid var(--sun-deep);
+  outline-offset: 3px;
+}
